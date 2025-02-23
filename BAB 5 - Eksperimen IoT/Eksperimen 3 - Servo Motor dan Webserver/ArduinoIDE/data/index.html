@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kontrol Motor Servo</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Kontrol Motor Servo</h1>
+        <div class="servo-readings">
+            <h2>Pembacaan Motor Servo</h2>
+            <p id="servo-degree">0°</p>
+        </div>
+        <div class="input-form">
+            <h2>Atur Motor Servo</h2>
+            <label for="mode">Pilih Mode:</label>
+            <select id="mode">
+                <option value="manual">Manual</option>
+                <option value="automatic">Otomatis</option>
+            </select>
+            <div id="manual-controls">
+                <label for="degree">Derajat:</label>
+                <input type="number" id="degree" name="degree" min="0" max="180" required>
+                <button id="setServo">Set Servo</button>
+            </div>
+            <div id="automatic-controls" style="display: none;">
+                <label for="delay">Delay (ms):</label>
+                <input type="number" id="delay" name="delay" min="0" required>
+                <button id="startAuto">Mulai Otomatis</button>
+                <button id="stopAuto" style="display: none;">Berhenti</button>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>
