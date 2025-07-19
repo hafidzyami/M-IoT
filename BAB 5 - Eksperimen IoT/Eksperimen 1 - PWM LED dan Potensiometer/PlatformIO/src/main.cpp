@@ -1,8 +1,8 @@
 #include <Arduino.h>
 
 // --- Definisi Pin ---
-const int potPin = 32; // Pin untuk Potensiometer (ADC1)
-const int ledPin = 33; // Pin untuk LED
+const int potPin = 2; // Pin untuk Potensiometer (ADC1)
+const int ledPin = 5; // Pin untuk LED
 
 // --- Pengaturan PWM ---
 const int freq = 5000;    // Frekuensi PWM 5000 Hz

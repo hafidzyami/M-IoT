@@ -123,13 +123,11 @@ void loop() {
   if (mode == "automatic") {
     for (int posDegrees = 0; posDegrees <= 180; posDegrees++) {
       servo1.write(posDegrees);
-      // notifyClients(String(posDegrees)); if delay < 1 second then ERROR: Too many messages queued 
       delay(value.toInt());
     }
 
     for (int posDegrees = 180; posDegrees >= 0; posDegrees--) {
-      servo1.write(posDegrees);
-      // notifyClients(String(posDegrees)); if delay < 1 second then ERROR: Too many messages queued
+      servo1.write(posDegrees);d
       delay(value.toInt());
     }
   }

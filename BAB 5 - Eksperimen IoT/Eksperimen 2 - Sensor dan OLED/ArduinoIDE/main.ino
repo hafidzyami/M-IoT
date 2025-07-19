@@ -61,28 +61,34 @@ void printValues() {
 
   Serial.println();
 
+  // Membersihkan layar sebelum menulis data baru
+  display.clearDisplay();
+
+  // Mengatur ukuran dan warna teks
   display.setTextSize(1);
-  display.setCursor(0,0);
-  display.print("Temperature: ");
-  display.setTextSize(2);
-  display.setCursor(0,10);
-  display.print(bmp.readTemperature());
-  display.print(" ");
-  display.setTextSize(1);
-  display.cp437(true);
-  display.write(167);
-  display.setTextSize(2);
+  display.setTextColor(SSD1306_WHITE);
+
+  // --- Menampilkan Suhu ---
+  display.setCursor(0, 5); 
+  display.print("Suhu: ");
+  display.print(bmp.readTemperature(), 1);
+  display.cp437(true);       
+  display.write(248);
   display.print("C");
   
-  display.setTextSize(1);
-  display.setCursor(0, 35);
-  display.print("Pressure: ");
-  display.setTextSize(2);
-  display.setCursor(0, 45);
-  display.print(bmp.readPressure());
-  display.print(" Pa");
+  // --- Menampilkan Tekanan ---
+  display.setCursor(0, 25);
+  display.print("Tekanan: ");
+  display.print(bmp.readPressure(), 1);
+  display.print(" hPa");
+
+  // --- Menampilkan Ketinggian ---
+  display.setCursor(0, 45); 
+  display.print("Ketinggian: ");
+  display.print(bmp.readAltitude(SEALEVELPRESSURE_HPA), 1);
+  display.print(" mdpl");
   
+  // Tampilkan data pada OLED
   display.display();
   delay(1000);
-  display.clearDisplay();
 }

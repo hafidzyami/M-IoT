@@ -5,7 +5,7 @@ import Head from 'next/head';
 import { Camera, Wifi, Menu, X, RefreshCw, Download, Maximize2, Minimize2 } from 'lucide-react';
 
 // Protocol options
-type Protocol = 'HTTP' | 'CoAP' | 'MQTT' | 'WebSocket' | 'WebRTC';
+type Protocol = 'HTTP' | 'CoAP' | 'MQTT' | 'WebSocket' | 'WebRTC' | 'HLS' | 'DASH';
 
 // Device types
 type DeviceType = 'raspberry-pi' | 'esp32-cam';
@@ -122,7 +122,9 @@ export default function Home() {
     'CoAP': 'bg-teal-400 hover:bg-teal-500',
     'MQTT': 'bg-violet-400 hover:bg-violet-500',
     'WebSocket': 'bg-amber-400 hover:bg-amber-500',
-    'WebRTC': 'bg-pink-400 hover:bg-pink-500'
+    'WebRTC': 'bg-pink-400 hover:bg-pink-500',
+    'HLS': 'bg-emerald-400 hover:bg-emerald-500',
+    'DASH': 'bg-orange-400 hover:bg-orange-500'
   };
 
   // Protocol badge colors - softer shades
@@ -131,7 +133,9 @@ export default function Home() {
     'CoAP': 'bg-teal-100 text-teal-700',
     'MQTT': 'bg-violet-100 text-violet-700',
     'WebSocket': 'bg-amber-100 text-amber-700',
-    'WebRTC': 'bg-pink-100 text-pink-700'
+    'WebRTC': 'bg-pink-100 text-pink-700',
+    'HLS': 'bg-emerald-100 text-emerald-700',
+    'DASH': 'bg-orange-100 text-orange-700'
   };
 
   return (
@@ -226,7 +230,7 @@ export default function Home() {
                 <div className="mb-6">
                   <label className="block text-sm font-medium mb-2 text-slate-600">Connection Protocol</label>
                   <div className="flex flex-wrap gap-2">
-                    {(['HTTP', 'CoAP', 'MQTT', 'WebSocket', 'WebRTC'] as Protocol[]).map((protocol) => (
+                    {(['HTTP', 'CoAP', 'MQTT', 'WebSocket', 'WebRTC', 'HLS', 'DASH'] as Protocol[]).map((protocol) => (
                       <button
                         key={protocol}
                         onClick={() => handleProtocolChange(protocol)}
