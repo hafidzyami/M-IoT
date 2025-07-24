@@ -1,0 +1,56 @@
+# ESP-IDF build output
+build/
+main/certs/
+# ESP-IDF managed components (automatically downloaded dependencies)
+managed_components/
+
+# ESP-IDF dependencies
+dependencies.lock
+
+# Menuconfig backup files
+sdkconfig.old
+sdkconfig.defaults.*
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+
+# Flash download tool files
+*.bin
+!bootloader.bin
+!partition-table.bin
+
+# Core dumps
+core
+
+# Temporary files
+*.tmp
+*.temp
