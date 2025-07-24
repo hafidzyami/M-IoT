@@ -9,11 +9,11 @@
 
 // --- KONFIGURASI ---
 // WiFi
-const char* ssid = "KENARI LANTAI 3";
-const char* password = "kenari851";
+const char* ssid = "Ganesha IT"; // Ganti dengan SSID WiFi Anda
+const char* password = "ganesha15E"; // Ganti dengan password WiFi Anda
 
 // MQTT
-const char* mqtt_server = "192.168.0.139";
+const char* mqtt_server = "192.168.1.25";
 const int mqtt_port = 1883;
 const char* image_topic = "esp32/camera/image";
 const char* status_topic = "esp32/camera/status";

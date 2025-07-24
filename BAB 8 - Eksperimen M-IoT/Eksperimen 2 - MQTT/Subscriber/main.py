@@ -6,7 +6,7 @@ import sys
 from datetime import datetime
 
 # --- KONFIGURASI ---
-MQTT_BROKER = "192.168.0.139"  # Ganti dengan IP Broker MQTT Anda
+MQTT_BROKER = "192.168.1.25"  # Ganti dengan IP Broker MQTT Anda
 MQTT_PORT = 1883
 IMAGE_TOPIC = "esp32/camera/image"
 STATUS_TOPIC = "esp32/camera/status"
@@ -131,6 +131,9 @@ def main():
         print("  stream         (default) Memulai video stream.")
         print("  capture        Mengambil satu foto dan menyimpannya.")
         print("                 [argumen]: nama file opsional (misal: fotoku.jpg)")
+        print("\nContoh:")
+        print("  python main.py 192.168.1.25 stream")
+        print("  python main.py 192.168.1.25 capture fotoku.jpg")
         return
 
     # Perbarui MQTT_BROKER jika diberikan sebagai argumen pertama
