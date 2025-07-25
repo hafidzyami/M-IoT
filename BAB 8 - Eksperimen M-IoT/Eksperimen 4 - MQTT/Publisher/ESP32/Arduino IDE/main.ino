@@ -1,7 +1,6 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include "esp_camera.h"
-#include "Arduino.h"
 #include "fb_gfx.h"
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
@@ -25,8 +24,9 @@ PubSubClient client(espClient);
 
 // Kontrol stream
 bool streamActive = false; // Flag untuk mengontrol streaming
+bool captureRequested = false;
 unsigned long lastFrameTime = 0;
-const long frameInterval = 200; // Interval realistis (200ms = target 5 FPS)
+const long frameInterval = 50; // Interval realistis (50ms = target 20 FPS)
 
 // --- KONFIGURASI PIN KAMERA (Pilih salah satu) ---
 #define CAMERA_MODEL_WROVER_KIT
@@ -117,7 +117,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     } else if (message == "capture") {
       Serial.println("Perintah capture diterima, mengambil satu gambar...");
       client.publish(status_topic, "Capture requested");
-      publishImage();
+      captureRequested = true;
     }
   }
 }
@@ -191,7 +191,7 @@ void setup() {
   config.pixel_format = PIXFORMAT_JPEG;
   
   config.frame_size = FRAMESIZE_VGA;
-  config.jpeg_quality = 20;
+  config.jpeg_quality = 10;
   config.fb_count = 2;      // Gunakan 2 buffer untuk stabilitas
   config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
   config.fb_location = CAMERA_FB_IN_PSRAM; // Gunakan PSRAM
@@ -217,6 +217,11 @@ void loop() {
     reconnect();
   }
   client.loop(); // Penting untuk menjaga koneksi dan menerima pesan
+
+  if(captureRequested) {
+    publishImage(); // Ambil dan kirim gambar
+    captureRequested = false; // Reset flag setelah permintaan diproses
+  }
 
   // Hanya kirim gambar jika streaming aktif
   if (streamActive) {

@@ -1,4 +1,3 @@
-#include <Arduino.h>
 #include <WiFi.h>
 #include "esp_camera.h"
 #include "soc/soc.h"

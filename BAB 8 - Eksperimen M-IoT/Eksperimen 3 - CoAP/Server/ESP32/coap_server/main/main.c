@@ -176,7 +176,7 @@ static void camera_stream_task(void *pvParameters)
                 esp_camera_fb_return(fb);
             }
         }
-        vTaskDelay(pdMS_TO_TICKS(100)); // Target ~10 FPS
+        vTaskDelay(pdMS_TO_TICKS(50)); // Target ~20 FPS
     }
     ESP_LOGI(TAG, "Camera stream task ended");
     stream_task_handle = NULL;

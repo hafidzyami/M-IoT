@@ -2,7 +2,6 @@
 #include <WiFi.h>
 #include "esp_timer.h"
 #include "img_converters.h"
-#include "Arduino.h"
 #include "fb_gfx.h"
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
@@ -193,7 +192,7 @@ body {
 <div class="container">
   <div class="header">
     <h1>Multimedia IoT by YB & HS</h1>
-    <p>Live Stream and Photo Capture</p>
+    <p>[HTTP] Live Stream and Photo Capture</p>
   </div>
   
   <div class="content">
@@ -580,7 +579,7 @@ static esp_err_t capture_handler(httpd_req_t *req) {
 static esp_err_t stream_handler(httpd_req_t *req){
   camera_fb_t * fb = NULL;
   esp_err_t res = ESP_OK;
-  char * part_buf[64];
+  char part_buf[64];
   
   static const char* _STREAM_CONTENT_TYPE = "multipart/x-mixed-replace;boundary=" PART_BOUNDARY;
   static const char* _STREAM_BOUNDARY = "\r\n--" PART_BOUNDARY "\r\n";
@@ -610,7 +609,7 @@ static esp_err_t stream_handler(httpd_req_t *req){
     esp_camera_fb_return(fb);
     
     if(res != ESP_OK) break;
-    delay(100);
+    delay(50); // Target ~ 20 FPS
   }
   
   return res;
@@ -685,9 +684,9 @@ void setup() {
   // Simple settings
   config.frame_size = FRAMESIZE_VGA;
   config.jpeg_quality = 10;
-  config.fb_count = 1;
+  config.fb_count = 2;
   config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
-  config.fb_location = CAMERA_FB_IN_DRAM;
+  config.fb_location = CAMERA_FB_IN_PSRAM;
   
   esp_err_t err = esp_camera_init(&config);
   if (err != ESP_OK) {
