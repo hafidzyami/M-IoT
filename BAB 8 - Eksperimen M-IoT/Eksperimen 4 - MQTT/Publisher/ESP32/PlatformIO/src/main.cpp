@@ -9,15 +9,15 @@
 
 // --- KONFIGURASI ---
 // WiFi
-const char* ssid = "Ganesha IT"; // Ganti dengan SSID WiFi Anda
-const char* password = "ganesha15E"; // Ganti dengan password WiFi Anda
+const char* ssid = "Bandung"; // Ganti dengan SSID WiFi Anda
+const char* password = "ybandung"; // Ganti dengan password WiFi Anda
 
 // MQTT
-const char* mqtt_server = "192.168.1.25";
+const char* mqtt_server = "172.20.10.4";
 const int mqtt_port = 1883;
-const char* image_topic = "esp32/camera/image";
-const char* status_topic = "esp32/camera/status";
-const char* command_topic = "esp32/camera/command";
+const char* image_topic = "camera/image";
+const char* status_topic = "camera/status";
+const char* command_topic = "camera/command";
 
 // --- VARIABEL GLOBAL ---
 WiFiClient espClient;

@@ -256,6 +256,10 @@ body {
     let frameCount = 0;
     let lastFPSTime = Date.now();
 
+    function updateStatus(message) {
+      statusEl.textContent = message;
+    }
+
     function connectWebSocket() {
         const wsUrl = `ws://${window.location.hostname}/ws`;
         console.log(`Menyambung ke ${wsUrl}`);
@@ -329,42 +333,85 @@ body {
         }
     }
 
+    // taking image from esp32, but cant for ios devices
+    // function takePhoto() {
+    //     if (ws.readyState !== WebSocket.OPEN) {
+    //         updateStatus('Not connected.');
+    //         return;
+    //     }
+        
+    //     updateStatus('Capturing...');
+    //     captureBtn.disabled = true;
+    //     photoContainer.innerHTML = 'Waiting for image...';
+        
+    //     ws.send('CAPTURE');
+        
+    //     const captureListener = (event) => {
+    //         if (lastPhotoUrl) {
+    //             URL.revokeObjectURL(lastPhotoUrl);
+    //         }
+    //         lastPhotoUrl = URL.createObjectURL(event.data);
+            
+    //         const img = new Image();
+    //         img.onload = () => {
+    //             photoContainer.innerHTML = '';
+    //             photoContainer.appendChild(img);
+    //             updateStatus('Photo captured successfully!');
+    //             downloadBtn.disabled = false;
+    //             captureBtn.disabled = false;
+    //         };
+    //         img.onerror = () => {
+    //             updateStatus('Failed to display captured photo.');
+    //             captureBtn.disabled = false;
+    //         };
+    //         img.src = lastPhotoUrl;
+            
+    //         ws.removeEventListener('message', captureListener);
+    //     };
+        
+    //     ws.addEventListener('message', captureListener);
+    // }
+
     function takePhoto() {
-        if (ws.readyState !== WebSocket.OPEN) {
-            updateStatus('Not connected.');
-            return;
-        }
-        
-        updateStatus('Capturing...');
-        captureBtn.disabled = true;
-        photoContainer.innerHTML = 'Waiting for image...';
-        
-        ws.send('CAPTURE');
-        
-        const captureListener = (event) => {
-            if (lastPhotoUrl) {
-                URL.revokeObjectURL(lastPhotoUrl);
-            }
-            lastPhotoUrl = URL.createObjectURL(event.data);
-            
-            const img = new Image();
-            img.onload = () => {
-                photoContainer.innerHTML = '';
-                photoContainer.appendChild(img);
-                updateStatus('Photo captured successfully!');
-                downloadBtn.disabled = false;
-                captureBtn.disabled = false;
-            };
-            img.onerror = () => {
-                updateStatus('Failed to display captured photo.');
-                captureBtn.disabled = false;
-            };
-            img.src = lastPhotoUrl;
-            
-            ws.removeEventListener('message', captureListener);
+      const captureBtn = document.getElementById('captureBtn');
+      const photoContainer = document.getElementById('photoContainer');
+      const streamImg = document.getElementById('streamImg');
+      const canvas = document.createElement('canvas');
+
+      updateStatus('Capturing frame from stream...');
+      captureBtn.disabled = true;
+      captureBtn.textContent = 'Capturing...';
+
+      // Sesuaikan ukuran canvas dengan ukuran gambar stream
+      canvas.width = streamImg.naturalWidth;
+      canvas.height = streamImg.naturalHeight;
+
+      // Gambar frame saat ini dari <img> ke <canvas>
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(streamImg, 0, 0, canvas.width, canvas.height);
+
+      // Dapatkan URL data dari canvas
+      canvas.toBlob(function(blob) {
+        const url = URL.createObjectURL(blob);
+
+        const img = new Image();
+        img.onload = function() {
+          photoContainer.innerHTML = '';
+          photoContainer.appendChild(img);
+          lastPhotoUrl = url;
+          document.getElementById('downloadBtn').disabled = false;
+          updateStatus('Photo captured successfully!');
         };
-        
-        ws.addEventListener('message', captureListener);
+        img.onerror = function() {
+          updateStatus('Failed to display captured photo.');
+        };
+        img.src = url;
+
+        // Aktifkan kembali tombol
+        captureBtn.disabled = false;
+        captureBtn.textContent = 'Take Photo';
+
+      }, 'image/jpeg', 0.9); // Kualitas 90%
     }
 
     function downloadPhoto() {
@@ -390,213 +437,221 @@ body {
 // Mengirim frame ke semua client WebSocket yang terhubung
 static void send_frame_to_clients(camera_fb_t *fb)
 {
-    if (xSemaphoreTake(clients_mutex, portMAX_DELAY))
+  if (xSemaphoreTake(clients_mutex, portMAX_DELAY))
+  {
+    for (int i = 0; i < MAX_CLIENTS; i++)
     {
-        for (int i = 0; i < MAX_CLIENTS; i++)
+      if (clients_fds[i] != 0)
+      {
+        httpd_ws_frame_t ws_pkt;
+        memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
+        ws_pkt.payload = (uint8_t *)fb->buf;
+        ws_pkt.len = fb->len;
+        ws_pkt.type = HTTPD_WS_TYPE_BINARY;
+
+        // FIX: Periksa hasil pengiriman. Jika gagal, hapus client.
+        esp_err_t ret = httpd_ws_send_frame_async(camera_httpd, clients_fds[i], &ws_pkt);
+        if (ret != ESP_OK)
         {
-            if (clients_fds[i] != 0)
-            {
-                httpd_ws_frame_t ws_pkt;
-                memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
-                ws_pkt.payload = (uint8_t *)fb->buf;
-                ws_pkt.len = fb->len;
-                ws_pkt.type = HTTPD_WS_TYPE_BINARY;
-                httpd_ws_send_frame_async(camera_httpd, clients_fds[i], &ws_pkt);
-            }
+          Serial.printf("Gagal mengirim frame ke client fd=%d, menghapus client.\n", clients_fds[i]);
+          // Hapus client dari daftar dengan menyetel fd-nya ke 0
+          clients_fds[i] = 0;
         }
-        xSemaphoreGive(clients_mutex);
+      }
     }
+    xSemaphoreGive(clients_mutex);
+  }
 }
 
 // Task FreeRTOS untuk mengambil dan mengirim stream video
 static void camera_stream_task(void *arg)
 {
-    camera_fb_t *fb = NULL;
-    while (stream_active)
+  camera_fb_t *fb = NULL;
+  while (stream_active)
+  {
+    fb = esp_camera_fb_get();
+    if (!fb)
     {
-        fb = esp_camera_fb_get();
-        if (!fb)
-        {
-            Serial.println("Gagal mengambil frame");
-            continue;
-        }
-        send_frame_to_clients(fb);
-        esp_camera_fb_return(fb);
-        vTaskDelay(pdMS_TO_TICKS(50)); // Target ~20 FPS
+      Serial.println("Gagal mengambil frame");
+      continue;
     }
-    // Hapus task saat loop berakhir
-    camera_stream_task_handle = NULL;
-    vTaskDelete(NULL);
+    send_frame_to_clients(fb);
+    esp_camera_fb_return(fb);
+    vTaskDelay(pdMS_TO_TICKS(50)); // Target ~20 FPS
+  }
+  camera_stream_task_handle = NULL;
+  vTaskDelete(NULL);
 }
 
 // Handler untuk koneksi WebSocket
 static esp_err_t ws_handler(httpd_req_t *req)
 {
-    if (req->method == HTTP_GET)
-    {
-        Serial.printf("Client terhubung dengan fd=%d\n", httpd_req_to_sockfd(req));
-        return ESP_OK;
-    }
+  if (req->method == HTTP_GET)
+  {
+    Serial.printf("Client terhubung dengan fd=%d\n", httpd_req_to_sockfd(req));
+    return ESP_OK;
+  }
 
-    httpd_ws_frame_t ws_pkt;
-    memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
-    ws_pkt.type = HTTPD_WS_TYPE_TEXT;
+  httpd_ws_frame_t ws_pkt;
+  memset(&ws_pkt, 0, sizeof(httpd_ws_frame_t));
+  ws_pkt.type = HTTPD_WS_TYPE_TEXT;
 
-    // Dapatkan frame dari client
-    esp_err_t ret = httpd_ws_recv_frame(req, &ws_pkt, 0);
-    if (ret != ESP_OK)
-    {
-        return ret;
-    }
-
-    // Alokasikan buffer untuk payload
-    if (ws_pkt.len)
-    {
-        uint8_t *buf = (uint8_t *)calloc(1, ws_pkt.len + 1);
-        if (buf)
-        {
-            ws_pkt.payload = buf;
-            ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
-            if (ret == ESP_OK)
-            {
-                // Konversi payload ke string
-                std::string cmd = std::string((char *)ws_pkt.payload, ws_pkt.len);
-                Serial.printf("Menerima perintah: %s\n", cmd.c_str());
-
-                if (cmd == "STREAM_ON")
-                {
-                    if (xSemaphoreTake(clients_mutex, portMAX_DELAY))
-                    {
-                        for (int i = 0; i < MAX_CLIENTS; i++)
-                        {
-                            if (clients_fds[i] == 0)
-                            {
-                                clients_fds[i] = httpd_req_to_sockfd(req);
-                                break;
-                            }
-                        }
-                        xSemaphoreGive(clients_mutex);
-                    }
-                    if (!stream_active)
-                    {
-                        stream_active = true;
-                        xTaskCreate(camera_stream_task, "cam_stream_task", 4096, NULL, 5, &camera_stream_task_handle);
-                    }
-                }
-                else if (cmd == "STREAM_OFF")
-                {
-                    stream_active = false;
-                }
-                else if (cmd == "CAPTURE")
-                {
-                    camera_fb_t *fb = esp_camera_fb_get();
-                    if (fb)
-                    {
-                        httpd_ws_frame_t resp_pkt;
-                        memset(&resp_pkt, 0, sizeof(httpd_ws_frame_t));
-                        resp_pkt.payload = (uint8_t *)fb->buf;
-                        resp_pkt.len = fb->len;
-                        resp_pkt.type = HTTPD_WS_TYPE_BINARY;
-                        httpd_ws_send_frame_async(req->handle, httpd_req_to_sockfd(req), &resp_pkt);
-                        esp_camera_fb_return(fb);
-                    }
-                }
-            }
-            free(buf);
-        }
-    }
+  // Dapatkan frame dari client
+  esp_err_t ret = httpd_ws_recv_frame(req, &ws_pkt, 0);
+  if (ret != ESP_OK)
+  {
     return ret;
+  }
+
+  // Alokasikan buffer untuk payload
+  if (ws_pkt.len)
+  {
+    uint8_t *buf = (uint8_t *)calloc(1, ws_pkt.len + 1);
+    if (buf)
+    {
+      ws_pkt.payload = buf;
+      ret = httpd_ws_recv_frame(req, &ws_pkt, ws_pkt.len);
+      if (ret == ESP_OK)
+      {
+        // Konversi payload ke string
+        std::string cmd = std::string((char *)ws_pkt.payload, ws_pkt.len);
+        Serial.printf("Menerima perintah: %s\n", cmd.c_str());
+
+        if (cmd == "STREAM_ON")
+        {
+          if (xSemaphoreTake(clients_mutex, portMAX_DELAY))
+          {
+            for (int i = 0; i < MAX_CLIENTS; i++)
+            {
+              if (clients_fds[i] == 0)
+              {
+                clients_fds[i] = httpd_req_to_sockfd(req);
+                break;
+              }
+            }
+            xSemaphoreGive(clients_mutex);
+          }
+          if (!stream_active)
+          {
+            stream_active = true;
+            xTaskCreate(camera_stream_task, "cam_stream_task", 4096, NULL, 5, &camera_stream_task_handle);
+          }
+        }
+        else if (cmd == "STREAM_OFF")
+        {
+          stream_active = false;
+        }
+        else if (cmd == "CAPTURE")
+        {
+          camera_fb_t *fb = esp_camera_fb_get();
+          if (fb)
+          {
+            httpd_ws_frame_t resp_pkt;
+            memset(&resp_pkt, 0, sizeof(httpd_ws_frame_t));
+            resp_pkt.payload = (uint8_t *)fb->buf;
+            resp_pkt.len = fb->len;
+            resp_pkt.type = HTTPD_WS_TYPE_BINARY;
+            httpd_ws_send_frame_async(req->handle, httpd_req_to_sockfd(req), &resp_pkt);
+            esp_camera_fb_return(fb);
+          }
+        }
+      }
+      free(buf);
+    }
+  }
+  return ret;
 }
 
 // Handler untuk halaman utama
 static esp_err_t index_handler(httpd_req_t *req)
 {
-    httpd_resp_set_type(req, "text/html");
-    return httpd_resp_send(req, INDEX_HTML, strlen(INDEX_HTML));
+  httpd_resp_set_type(req, "text/html");
+  return httpd_resp_send(req, INDEX_HTML, strlen(INDEX_HTML));
 }
 
 // Memulai server web
 void startCameraServer()
 {
-    httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-    config.server_port = 80;
-    config.ctrl_port = 32768; // Port kontrol default
+  httpd_config_t config = HTTPD_DEFAULT_CONFIG();
+  config.server_port = 80;
+  config.ctrl_port = 32768; // Port kontrol default
 
-    httpd_uri_t index_uri = {"/", HTTP_GET, index_handler, NULL};
-    httpd_uri_t ws_uri = {"/ws", HTTP_GET, ws_handler, NULL, true};
+  httpd_uri_t index_uri = {"/", HTTP_GET, index_handler, NULL};
+  httpd_uri_t ws_uri = {"/ws", HTTP_GET, ws_handler, NULL, true};
 
-    if (httpd_start(&camera_httpd, &config) == ESP_OK)
-    {
-        httpd_register_uri_handler(camera_httpd, &index_uri);
-        httpd_register_uri_handler(camera_httpd, &ws_uri);
-        Serial.println("Server HTTP/WebSocket berhasil dimulai");
-    }
+  if (httpd_start(&camera_httpd, &config) == ESP_OK)
+  {
+    httpd_register_uri_handler(camera_httpd, &index_uri);
+    httpd_register_uri_handler(camera_httpd, &ws_uri);
+    Serial.println("Server HTTP/WebSocket berhasil dimulai");
+  }
 }
 
 void setup()
 {
-    WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
 
-    Serial.begin(115200);
-    Serial.println("ESP32-CAM Starting...");
+  Serial.begin(115200);
+  Serial.println("ESP32-CAM Starting...");
 
-    camera_config_t config;
-    config.ledc_channel = LEDC_CHANNEL_0;
-    config.ledc_timer = LEDC_TIMER_0;
-    config.pin_d0 = Y2_GPIO_NUM;
-    config.pin_d1 = Y3_GPIO_NUM;
-    config.pin_d2 = Y4_GPIO_NUM;
-    config.pin_d3 = Y5_GPIO_NUM;
-    config.pin_d4 = Y6_GPIO_NUM;
-    config.pin_d5 = Y7_GPIO_NUM;
-    config.pin_d6 = Y8_GPIO_NUM;
-    config.pin_d7 = Y9_GPIO_NUM;
-    config.pin_xclk = XCLK_GPIO_NUM;
-    config.pin_pclk = PCLK_GPIO_NUM;
-    config.pin_vsync = VSYNC_GPIO_NUM;
-    config.pin_href = HREF_GPIO_NUM;
-    config.pin_sccb_sda = SIOD_GPIO_NUM;
-    config.pin_sccb_scl = SIOC_GPIO_NUM;
-    config.pin_pwdn = PWDN_GPIO_NUM;
-    config.pin_reset = RESET_GPIO_NUM;
-    config.xclk_freq_hz = 20000000;
-    config.pixel_format = PIXFORMAT_JPEG;
+  camera_config_t config;
+  config.ledc_channel = LEDC_CHANNEL_0;
+  config.ledc_timer = LEDC_TIMER_0;
+  config.pin_d0 = Y2_GPIO_NUM;
+  config.pin_d1 = Y3_GPIO_NUM;
+  config.pin_d2 = Y4_GPIO_NUM;
+  config.pin_d3 = Y5_GPIO_NUM;
+  config.pin_d4 = Y6_GPIO_NUM;
+  config.pin_d5 = Y7_GPIO_NUM;
+  config.pin_d6 = Y8_GPIO_NUM;
+  config.pin_d7 = Y9_GPIO_NUM;
+  config.pin_xclk = XCLK_GPIO_NUM;
+  config.pin_pclk = PCLK_GPIO_NUM;
+  config.pin_vsync = VSYNC_GPIO_NUM;
+  config.pin_href = HREF_GPIO_NUM;
+  config.pin_sccb_sda = SIOD_GPIO_NUM;
+  config.pin_sccb_scl = SIOC_GPIO_NUM;
+  config.pin_pwdn = PWDN_GPIO_NUM;
+  config.pin_reset = RESET_GPIO_NUM;
+  config.xclk_freq_hz = 20000000;
+  config.pixel_format = PIXFORMAT_JPEG;
 
-    // Simple settings
-    config.frame_size = FRAMESIZE_VGA;
-    config.jpeg_quality = 10;
-    config.fb_count = 2;
-    config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
-    config.fb_location = CAMERA_FB_IN_PSRAM;
+  // Simple settings
+  config.frame_size = FRAMESIZE_VGA;
+  config.jpeg_quality = 10;
+  config.fb_count = 2;
+  config.grab_mode = CAMERA_GRAB_WHEN_EMPTY;
+  config.fb_location = CAMERA_FB_IN_PSRAM;
 
-    esp_err_t err = esp_camera_init(&config);
-    if (err != ESP_OK)
-    {
-        Serial.printf("Camera init failed with error 0x%x\n", err);
-        return;
-    }
-    Serial.println("Camera initialized");
+  esp_err_t err = esp_camera_init(&config);
+  if (err != ESP_OK)
+  {
+    Serial.printf("Camera init failed with error 0x%x\n", err);
+    return;
+  }
+  Serial.println("Camera initialized");
 
-    #if defined(USE_AP_MODE)
-        WiFi.softAP(ssid, password);
-        Serial.print("AP started. Go to: http://");
-        Serial.println(WiFi.softAPIP());
-    #else
-        WiFi.begin(ssid, password);
-        while (WiFi.status() != WL_CONNECTED) {
-        delay(500);
-        Serial.print(".");
-        }
-        Serial.print("WiFi connected. Go to: http://");
-        Serial.println(WiFi.localIP());
-    #endif
+#if defined(USE_AP_MODE)
+  WiFi.softAP(ssid, password);
+  Serial.print("AP started. Go to: http://");
+  Serial.println(WiFi.softAPIP());
+#else
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.print("WiFi connected. Go to: http://");
+  Serial.println(WiFi.localIP());
+#endif
 
-    clients_mutex = xSemaphoreCreateMutex();
-    startCameraServer();
+  clients_mutex = xSemaphoreCreateMutex();
+  startCameraServer();
 }
 
 void loop()
 {
-    // Loop utama bisa kosong karena semua pekerjaan ditangani oleh task
-    vTaskDelay(portMAX_DELAY);
+  // Loop utama bisa kosong karena semua pekerjaan ditangani oleh task
+  vTaskDelay(portMAX_DELAY);
 }

@@ -1,0 +1,6 @@
+webrtcAdditionalHosts: [57.155.88.50]
+
+hlsSegmentCount: 300
+
+paths:
+  all_others: {}

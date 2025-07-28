@@ -6,11 +6,11 @@ import sys
 from datetime import datetime
 
 # --- KONFIGURASI ---
-MQTT_BROKER = "192.168.1.25"  # Ganti dengan IP Broker MQTT Anda
+MQTT_BROKER = "172.20.10.5"  # Ganti dengan IP Broker MQTT Anda
 MQTT_PORT = 1883
-IMAGE_TOPIC = "esp32/camera/image"
-STATUS_TOPIC = "esp32/camera/status"
-COMMAND_TOPIC = "esp32/camera/command"
+IMAGE_TOPIC = "camera/image"
+STATUS_TOPIC = "camera/status"
+COMMAND_TOPIC = "camera/command"
 
 # --- VARIABEL GLOBAL ---
 frame_count = 0
@@ -60,10 +60,8 @@ def on_message_stream(client, userdata, msg):
             if img is not None:
                 frame_count += 1
                 current_fps = calculate_fps()
-                elapsed_time = time.time() - start_time
-                avg_fps = frame_count / elapsed_time if elapsed_time > 0 else 0
                 
-                info1 = f"FPS: {current_fps:.1f} (Avg: {avg_fps:.1f})"
+                info1 = f"FPS: {current_fps:.1f}"
                 info2 = f"Frame: {frame_count} | Size: {len(msg.payload) / 1024:.1f} KB"
                 cv2.putText(img, info1, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
                 cv2.putText(img, info2, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 255), 2)

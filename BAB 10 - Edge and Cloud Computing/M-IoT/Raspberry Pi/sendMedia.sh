@@ -1,0 +1,1 @@
+rpicam-vid -t 0 --inline -n --width 1920 --height 1080 -o - | ffmpeg -re -i - -c:v h264_v4l2m2m -b:v 2000k -g 60 -f mpegts 'srt://miot.profybandung.cloud:8890?streamid=publish:miotybhs'
