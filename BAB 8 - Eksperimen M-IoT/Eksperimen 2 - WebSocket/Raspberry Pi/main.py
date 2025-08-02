@@ -3,20 +3,23 @@ import time
 import logging
 import threading
 from flask import Flask, render_template_string, Response, send_file
+from flask_socketio import SocketIO, emit
 from picamera2 import Picamera2
 from picamera2.encoders import JpegEncoder
 from picamera2.outputs import FileOutput
 from libcamera import controls
-import cv2  # Digunakan untuk endpoint /capture
+import cv2
 import numpy as np
 
 # --- Konfigurasi ---
 logging.basicConfig(level=logging.INFO)
-# Nonaktifkan log error dari picamera2 agar tidak terlalu ramai
-logging.getLogger("picamera2").setLevel(logging.CRITICAL)
+logging.getLogger('picamera2').setLevel(logging.CRITICAL)
+logging.getLogger('engineio').setLevel(logging.WARNING)
+logging.getLogger('socketio').setLevel(logging.WARNING)
 
-# Inisialisasi aplikasi Flask
+# Inisialisasi aplikasi Flask dan SocketIO
 app = Flask(__name__)
+socketio = SocketIO(app, async_mode='threading')
 
 # --- Inisialisasi Kamera ---
 picam2 = Picamera2()
@@ -37,73 +40,73 @@ class StreamingOutput(io.BufferedIOBase):
             self.condition.notify_all()
         return len(buf)
 
-
-# Mulai merekam untuk streaming
 output = StreamingOutput()
 encoder = JpegEncoder(q=75)
 picam2.start_recording(encoder, FileOutput(output))
 logging.info("Kamera telah memulai rekaman untuk streaming.")
 
+# Variabel global untuk mengelola thread streaming
+stream_thread = None
+stop_streaming = threading.Event()
 
-def generate_frames():
-    """Generator yang menyediakan frame dari output streaming."""
-    while True:
+def stream_to_clients():
+    """
+    Thread yang berjalan di latar belakang untuk mengambil frame dari kamera
+    dan mengirimkannya ke semua client WebSocket yang terhubung.
+    """
+    logging.info("Memulai thread streaming WebSocket...")
+    while not stop_streaming.is_set():
         with output.condition:
             output.condition.wait()
             frame = output.frame
-        yield (b"--frame\r\n" b"Content-Type: image/jpeg\r\n\r\n" + frame + b"\r\n")
+        # Mengirim frame sebagai pesan biner ke semua client
+        socketio.emit('video_frame', frame)
+        socketio.sleep(0) # Memberi kesempatan pada task lain
+    logging.info("Thread streaming WebSocket dihentikan.")
 
-
-@app.route("/")
+@app.route('/')
 def index():
     """Menyajikan halaman web utama."""
     return render_template_string(HTML_TEMPLATE)
 
+@socketio.on('connect')
+def handle_connect():
+    """Dipanggil saat client baru terhubung."""
+    global stream_thread
+    logging.info(f"Client terhubung: {threading.active_count() - 1} client aktif.")
+    # Mulai thread streaming jika ini adalah client pertama
+    if stream_thread is None or not stream_thread.is_alive():
+        stop_streaming.clear()
+        stream_thread = socketio.start_background_task(target=stream_to_clients)
 
-@app.route("/stream")
-def stream():
-    """Endpoint untuk video stream MJPEG."""
-    return Response(
-        generate_frames(), mimetype="multipart/x-mixed-replace; boundary=frame"
-    )
+@socketio.on('disconnect')
+def handle_disconnect():
+    logging.info("Client terputus.")
 
-
-@app.route("/capture")
-def capture():
+@socketio.on('capture')
+def handle_capture_request():
     """
-    Endpoint untuk mengambil satu foto dari stream video yang sedang berjalan.
+    Menangani permintaan untuk mengambil satu foto.
+    Mengambil frame dari stream aktif tanpa beralih mode.
     """
     try:
-        logging.info("Perintah capture diterima. Mengambil frame dari video stream...")
-        # Mengambil frame langsung dari stream video yang aktif
+        logging.info("Perintah capture diterima, mengambil frame dari stream...")
         frame_array_rgb = picam2.capture_array("main")
-
-        # Konversi ke BGR untuk OpenCV
         frame_bgr = cv2.cvtColor(frame_array_rgb, cv2.COLOR_RGB2BGR)
-
-        logging.info("Meng-encode gambar...")
-        ret, buffer = cv2.imencode(".jpg", frame_bgr)
-        if not ret:
-            return "Gagal meng-encode gambar", 500
-
-        logging.info("Mengirim gambar...")
-        return send_file(
-            io.BytesIO(buffer),
-            mimetype="image/jpeg",
-            as_attachment=True,
-            download_name="capture.jpg",
-        )
+        ret, buffer = cv2.imencode('.jpg', frame_bgr)
+        if ret:
+            logging.info("Mengirim foto hasil capture...")
+            # Mengirim foto kembali ke client yang memintanya
+            emit('capture_response', buffer.tobytes())
     except Exception as e:
         logging.error(f"Error saat capture: {e}")
-        return "Gagal mengambil gambar", 500
 
-
-# --- TEMPLATE HTML (Diperbarui dengan Kontrol Stream dan TANPA FPS) ---
+# --- TEMPLATE HTML (Diadaptasi untuk WebSocket) ---
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
-<title>M-IoT YB & HS</title>
+<title>M-IoT by YB & HS</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
 body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
@@ -130,16 +133,13 @@ h2 { color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padd
 <div class="container">
   <div class="header">
     <h1>M-IoT by YB & HS</h1>
-    <p>[HTTP] Live Stream and Photo Capture</p>
+    <p>[WebSocket] Live Stream and Photo Capture</p>
   </div>
   <div class="content">
     <div class="column">
       <h2>Live Stream</h2>
       <div class="stream-container">
-        <img src="{{ url_for('stream') }}" class="stream-img" id="streamImg">
-      </div>
-      <div class="controls">
-        <button class="btn" onclick="toggleStream()" id="streamToggle">Pause Stream</button>
+        <img src="" class="stream-img" id="streamImg">
       </div>
     </div>
     <div class="column">
@@ -156,65 +156,64 @@ h2 { color: #2c3e50; margin-bottom: 20px; border-bottom: 2px solid #3498db; padd
   </div>
 </div>
 
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script>
 let lastPhotoUrl = '';
-let streamPaused = false;
-
 const streamImg = document.getElementById('streamImg');
-const streamToggleBtn = document.getElementById('streamToggle');
 
 function updateStatus(message) {
   document.getElementById('status').textContent = message;
 }
 
-function toggleStream() {
-    streamPaused = !streamPaused;
-    if (streamPaused) {
-        streamImg.src = '#'; // Hentikan stream dengan menghapus sumber
-        streamToggleBtn.textContent = 'Resume Stream';
-    } else {
-        // Muat ulang stream dengan parameter acak untuk mencegah cache
-        streamImg.src = "{{ url_for('stream') }}?" + new Date().getTime();
-        streamToggleBtn.textContent = 'Pause Stream';
+const socket = io();
+
+socket.on('connect', () => {
+    console.log('Terhubung ke server WebSocket!');
+    updateStatus('Terhubung dan siap.');
+});
+
+socket.on('video_frame', (imageBytes) => {
+    // Terima data biner, buat Blob, lalu Object URL
+    const blob = new Blob([imageBytes], { type: 'image/jpeg' });
+    const url = URL.createObjectURL(blob);
+    streamImg.src = url;
+    // Hapus URL lama setelah yang baru dimuat untuk menghemat memori
+    streamImg.onload = () => {
+        URL.revokeObjectURL(url);
     }
-}
+});
+
+socket.on('capture_response', (imageBytes) => {
+    const photoContainer = document.getElementById('photoContainer');
+    const downloadBtn = document.getElementById('downloadBtn');
+    
+    const blob = new Blob([imageBytes], { type: 'image/jpeg' });
+    if (lastPhotoUrl) URL.revokeObjectURL(lastPhotoUrl);
+    lastPhotoUrl = URL.createObjectURL(blob);
+
+    const img = new Image();
+    img.onload = () => {
+        photoContainer.innerHTML = '';
+        photoContainer.appendChild(img);
+        downloadBtn.disabled = false;
+        updateStatus('Foto berhasil diambil!');
+    };
+    img.src = lastPhotoUrl;
+});
 
 function takePhoto() {
   const captureBtn = document.getElementById('captureBtn');
-  const photoContainer = document.getElementById('photoContainer');
-  const downloadBtn = document.getElementById('downloadBtn');
-  
   captureBtn.disabled = true;
   captureBtn.textContent = 'Capturing...';
-  updateStatus('Taking photo...');
-  downloadBtn.disabled = true;
+  updateStatus('Mengirim permintaan capture...');
+  
+  socket.emit('capture');
 
-  fetch('/capture')
-    .then(response => {
-      if (!response.ok) throw new Error('Capture failed with status: ' + response.status);
-      return response.blob();
-    })
-    .then(blob => {
-      const url = URL.createObjectURL(blob);
-      const img = new Image();
-      img.onload = () => {
-        photoContainer.innerHTML = '';
-        photoContainer.appendChild(img);
-        if (lastPhotoUrl) URL.revokeObjectURL(lastPhotoUrl);
-        lastPhotoUrl = url;
-        downloadBtn.disabled = false;
-        updateStatus('Photo captured successfully!');
-      };
-      img.onerror = () => { updateStatus('Failed to display captured photo'); };
-      img.src = url;
-    })
-    .catch(error => {
-      updateStatus('Capture failed: ' + error.message);
-    })
-    .finally(() => {
+  // Set timeout untuk mengaktifkan kembali tombol jika tidak ada respons
+  setTimeout(() => {
       captureBtn.disabled = false;
       captureBtn.textContent = 'Take Photo';
-    });
+  }, 2000); // Timeout 2 detik
 }
 
 function downloadPhoto() {
@@ -225,7 +224,7 @@ function downloadPhoto() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    updateStatus('Photo download started');
+    updateStatus('Download foto dimulai...');
   }
 }
 </script>
@@ -233,12 +232,13 @@ function downloadPhoto() {
 </html>
 """
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     try:
-        logging.info(
-            f"Server streaming berjalan. Buka browser ke http://<IP_RASPBERRY_PI>:8000"
-        )
-        app.run(host="0.0.0.0", port=8000, threaded=True)
+        logging.info(f"Server WebSocket berjalan. Buka browser ke http://<IP_RASPBERRY_PI>:8000")
+        socketio.run(app, host='0.0.0.0', port=8000)
     finally:
+        stop_streaming.set()
+        if stream_thread:
+            stream_thread.join()
         picam2.stop_recording()
-        logging.info("Kamera dihentikan.")
+        logging.info("Kamera dan server dihentikan.")

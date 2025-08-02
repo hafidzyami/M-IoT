@@ -8,7 +8,7 @@ from picamera2 import Picamera2
 from libcamera import controls
 
 # --- KONFIGURASI ---
-MQTT_BROKER = "172.20.10.2"  # Ganti dengan IP Broker MQTT Anda
+MQTT_BROKER = "172.20.10.5"  # Ganti dengan IP Broker MQTT Anda
 MQTT_PORT = 1883
 IMAGE_TOPIC = "camera/image"
 STATUS_TOPIC = "camera/status"
