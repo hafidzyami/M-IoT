@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: iot-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    restart: unless-stopped
+    networks:
+      - iot-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    depends_on:
+      - mqtt-broker
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: iot-frontend
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./frontend/.env
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - iot-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+  
+  mqtt-broker:
+    build:
+      context: ./mqtt-broker # Menggunakan context dari direktori mqtt_broker
+    container_name: mqtt-broker
+    restart: unless-stopped
+    ports:
+      - "1883:1883" # MQTT default port
+      - "9001:9001" # WebSockets port
+    networks:
+      - iot-network
+
+networks:
+  iot-network:
+    driver: bridge

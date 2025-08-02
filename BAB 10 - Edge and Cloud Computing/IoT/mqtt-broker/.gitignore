@@ -1,0 +1,18 @@
+# File password (keamanan)
+mqtt/config/passwd
+
+# Pastikan .gitignore tetap menyimpan folder kosong
+!mqtt/data/.gitkeep
+!mqtt/log/.gitkeep
+
+# File environment
+.env
+
+# Sistem operasi
+.DS_Store
+Thumbs.db
+
+# Log dan cache
+*.log
+*.swp
+.cache/

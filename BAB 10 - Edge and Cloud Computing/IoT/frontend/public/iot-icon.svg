@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="256" cy="256" r="240" fill="#3B82F6"/>
+  
+  <!-- Central Device -->
+  <rect x="208" y="208" width="96" height="96" rx="8" fill="white"/>
+  
+  <!-- Connection Lines -->
+  <path d="M256 208V144" stroke="white" stroke-width="24" stroke-linecap="round"/>
+  <path d="M256 304V368" stroke="white" stroke-width="24" stroke-linecap="round"/>
+  <path d="M208 256H144" stroke="white" stroke-width="24" stroke-linecap="round"/>
+  <path d="M304 256H368" stroke="white" stroke-width="24" stroke-linecap="round"/>
+  
+  <!-- Diagonal Connections -->
+  <path d="M211.431 211.431L166.863 166.863" stroke="white" stroke-width="24" stroke-linecap="round"/>
+  <path d="M300.569 300.569L345.137 345.137" stroke="white" stroke-width="24" stroke-linecap="round"/>
+  <path d="M300.569 211.431L345.137 166.863" stroke="white" stroke-width="24" stroke-linecap="round"/>
+  <path d="M211.431 300.569L166.863 345.137" stroke="white" stroke-width="24" stroke-linecap="round"/>
+  
+  <!-- Connection Nodes -->
+  <circle cx="256" cy="144" r="24" fill="white"/>
+  <circle cx="256" cy="368" r="24" fill="white"/>
+  <circle cx="144" cy="256" r="24" fill="white"/>
+  <circle cx="368" cy="256" r="24" fill="white"/>
+  <circle cx="166.863" cy="166.863" r="24" fill="white"/>
+  <circle cx="345.137" cy="345.137" r="24" fill="white"/>
+  <circle cx="345.137" cy="166.863" r="24" fill="white"/>
+  <circle cx="166.863" cy="345.137" r="24" fill="white"/>
+  
+  <!-- Center Icon -->
+  <circle cx="256" cy="256" r="16" fill="#3B82F6"/>
+</svg>
