@@ -1,12 +1,11 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>M-IoT by YB & HS</title>
-    <!-- Memuat library player dari CDN -->
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-    <!-- Memuat font dari Google Fonts dan Tailwind CSS untuk styling -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
@@ -15,7 +14,8 @@
         /* Menggunakan font Inter sebagai default */
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #000;
+            background-color: #f9fafb;
+            /* Light Lavender - Lebih cerah dari abu-abu */
             overflow: hidden;
             height: 100vh;
             margin: 0;
@@ -25,12 +25,17 @@
         /* Custom styling untuk video container */
         .video-container {
             position: relative;
-            background: #111;
+            background: #ffffff;
+            /* Tetap putih atau sesuaikan */
             border-radius: 12px;
             overflow: hidden;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             width: 90%;
             height: 80vh;
+            display: flex;
+            /* Tambahkan flexbox untuk centering video */
+            justify-content: center;
+            align-items: center;
         }
 
         /* Styling untuk video element */
@@ -38,7 +43,8 @@
             width: 100%;
             height: 100%;
             object-fit: contain;
-            background: #000;
+            background: transparent;
+            /* Ubah ini menjadi transparan */
         }
 
         /* Custom controls overlay */
@@ -47,7 +53,7 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+            background: linear-gradient(transparent, rgba(255, 255, 255, 0.9));
             padding: 20px 16px 16px;
             transform: translateY(100%);
             transition: transform 0.3s ease;
@@ -61,7 +67,7 @@
         .progress-container {
             width: 100%;
             height: 6px;
-            background: rgba(255, 255, 255, 0.3);
+            background: rgba(0, 0, 0, 0.1);
             border-radius: 3px;
             cursor: pointer;
             margin-bottom: 12px;
@@ -93,12 +99,12 @@
                 width: 95%;
                 height: 70vh;
             }
-            
+
             .mobile-controls {
                 display: flex;
                 gap: 8px;
             }
-            
+
             .desktop-controls {
                 display: none;
             }
@@ -108,7 +114,7 @@
             .mobile-controls {
                 display: none;
             }
-            
+
             .desktop-controls {
                 display: flex;
                 gap: 12px;
@@ -117,7 +123,7 @@
 
         /* Loading spinner */
         .loading-spinner {
-            border: 3px solid rgba(255, 255, 255, 0.3);
+            border: 3px solid rgba(0, 0, 0, 0.2);
             border-top: 3px solid #3b82f6;
             border-radius: 50%;
             width: 40px;
@@ -126,33 +132,47 @@
         }
 
         @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Styling untuk tombol protokol aktif */
+        .protocol-btn.active {
+            background-color: #3b82f6 !important;
+            /* Biru */
+            color: white !important;
         }
     </style>
 </head>
-<body class="text-white">
+
+<body class="text-gray-800">
 
     <div class="flex flex-col h-screen">
-        <!-- Panel Kontrol di Atas -->
-        <header class="bg-gray-800 p-3 md:p-4 border-b border-gray-700 shadow-lg flex-shrink-0">
+        <header class="bg-white p-3 md:p-4 border-b border-gray-200 shadow-sm flex-shrink-0">
             <div class="flex flex-col md:flex-row items-center justify-between gap-4 max-w-7xl mx-auto">
 
-                <!-- Input Path -->
                 <div class="flex-grow w-full md:w-auto">
-                    <input type="text" id="pathInput" placeholder="Masukkan path stream..." class="w-full bg-gray-700 text-white px-4 py-2 border border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                    <input type="text" id="pathInput" placeholder="Masukkan path stream..."
+                        class="w-full bg-gray-100 text-gray-800 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
                 </div>
 
-                <!-- Pilihan Protokol -->
-                <div id="protocolSelector" class="flex items-center gap-2 p-1 bg-gray-900 rounded-lg">
-                    <button data-protocol="hls" class="protocol-btn bg-blue-500 text-white px-4 py-1 rounded-md text-sm font-medium">HLS</button>
-                    <button data-protocol="webrtc" class="protocol-btn text-gray-300 hover:bg-gray-700 px-4 py-1 rounded-md text-sm font-medium">WebRTC</button>
+                <div id="protocolSelector" class="flex items-center gap-2 p-1 bg-gray-200 rounded-lg">
+                    <button data-protocol="hls"
+                        class="protocol-btn bg-blue-500 text-white px-4 py-1 rounded-md text-sm font-medium active">LL-HLS</button>
+                    <button data-protocol="webrtc"
+                        class="protocol-btn text-gray-600 hover:bg-gray-300 px-4 py-1 rounded-md text-sm font-medium">WebRTC</button>
                 </div>
 
-                <!-- Tombol Muat dan Status -->
                 <div class="flex items-center gap-4 w-full md:w-auto justify-end">
-                    <div id="statusLog" class="flex-grow text-sm text-gray-400 truncate hidden md:block text-right">Menunggu input...</div>
-                    <button onclick="loadStream()" class="w-full md:w-auto bg-blue-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-700 transition-all shadow-md">
+                    <div id="statusLog" class="flex-grow text-sm text-gray-500 truncate hidden md:block text-right">
+                        Menunggu input...</div>
+                    <button onclick="loadStream()"
+                        class="w-full md:w-auto bg-blue-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-700 transition-all shadow-md">
                         Muat
                     </button>
                 </div>
@@ -160,87 +180,91 @@
             </div>
         </header>
 
-        <!-- Area Video Utama -->
-        <main class="flex-grow flex items-center justify-center bg-black p-4 md:p-6 overflow-hidden">
+        <main class="flex-grow flex items-center justify-center p-4 md:p-6 overflow-hidden">
             <div class="video-container">
                 <video id="videoPlayer" playsinline></video>
 
-                <!-- Loading indicator -->
-                <div id="loadingIndicator" class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-75 hidden">
+                <div id="loadingIndicator"
+                    class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 hidden">
                     <div class="flex flex-col items-center">
                         <div class="loading-spinner mb-4"></div>
-                        <p class="text-white text-sm">Memuat stream...</p>
+                        <p class="text-gray-700 text-sm">Memuat stream...</p>
                     </div>
                 </div>
 
-                <!-- Custom video controls -->
                 <div class="video-controls">
-                    <!-- Progress bar -->
                     <div class="progress-container" id="progressContainer">
                         <div class="progress-bar" id="progressBar"></div>
                     </div>
 
-                    <!-- Control buttons -->
                     <div class="flex items-center justify-between">
                         <div class="flex items-center">
-                            <!-- Play/Pause button -->
-                            <button id="playPauseBtn" class="text-white hover:text-blue-400 transition-colors p-2 bg-gray-800 bg-opacity-50 rounded-full hover:bg-opacity-70">
+                            <button id="playPauseBtn"
+                                class="text-gray-700 hover:text-blue-500 transition-colors p-2 bg-gray-100 bg-opacity-50 rounded-full hover:bg-opacity-70">
                                 <svg id="playIcon" class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M8 5v14l11-7z"/>
+                                    <path d="M8 5v14l11-7z" />
                                 </svg>
                                 <svg id="pauseIcon" class="w-8 h-8 hidden" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
                                 </svg>
                             </button>
 
-                            <!-- Volume controls -->
                             <div class="volume-container flex items-center ml-2">
-                                <button id="muteBtn" class="text-white hover:text-blue-400 transition-colors p-2">
+                                <button id="muteBtn" class="text-gray-700 hover:text-blue-500 transition-colors p-2">
                                     <svg id="volumeIcon" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.794L4.15 13.5H2a1 1 0 01-1-1v-5a1 1 0 011-1h2.15l4.233-3.294a1 1 0 011.617.794zM12 6a1 1 0 011.414 0 5 5 0 010 7.071A1 1 0 0112 12a3 3 0 000-4.243A1 1 0 0112 6z" clip-rule="evenodd"></path>
+                                        <path fill-rule="evenodd"
+                                            d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.794L4.15 13.5H2a1 1 0 01-1-1v-5a1 1 0 011-1h2.15l4.233-3.294a1 1 0 011.617.794zM12 6a1 1 0 011.414 0 5 5 0 010 7.071A1 1 0 0112 12a3 3 0 000-4.243A1 1 0 0112 6z"
+                                            clip-rule="evenodd"></path>
                                     </svg>
                                     <svg id="mutedIcon" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.794L4.15 13.5H2a1 1 0 01-1-1v-5a1 1 0 011-1h2.15l4.233-3.294a1 1 0 011.617.794zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                                        <path fill-rule="evenodd"
+                                            d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.794L4.15 13.5H2a1 1 0 01-1-1v-5a1 1 0 011-1h2.15l4.233-3.294a1 1 0 011.617.794zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z"
+                                            clip-rule="evenodd"></path>
                                     </svg>
                                 </button>
-                                <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.1" value="1">
+                                <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.1"
+                                    value="1">
                             </div>
 
-                            <!-- Time display -->
-                            <span id="timeDisplay" class="text-sm text-gray-300 ml-4">00:00 / 00:00</span>
+                            <span id="timeDisplay" class="text-sm text-gray-600 ml-4">00:00 / 00:00</span>
                         </div>
 
                         <div class="flex items-center gap-2">
-                            <!-- Quality selector (for future use) -->
-                            <select id="qualitySelector" class="bg-gray-700 text-white text-sm px-2 py-1 rounded border-gray-600 hidden">
+                            <select id="qualitySelector"
+                                class="bg-gray-200 text-gray-800 text-sm px-2 py-1 rounded border-gray-300 hidden">
                                 <option>Auto</option>
                             </select>
 
-                            <!-- Fullscreen button -->
-                            <button id="fullscreenBtn" class="text-white hover:text-blue-400 transition-colors p-2">
+                            <button id="fullscreenBtn" class="text-gray-700 hover:text-blue-500 transition-colors p-2">
                                 <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 11-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 012 0v1.586l2.293-2.293a1 1 0 111.414 1.414L6.414 15H8a1 1 0 010 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 111.414-1.414L15 13.586V12a1 1 0 011-1z" clip-rule="evenodd"></path>
+                                    <path fill-rule="evenodd"
+                                        d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 11-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 012 0v1.586l2.293-2.293a1 1 0 111.414 1.414L6.414 15H8a1 1 0 010 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 111.414-1.414L15 13.586V12a1 1 0 011-1z"
+                                        clip-rule="evenodd"></path>
                                 </svg>
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Overlay saat tidak ada video -->
-                <div id="videoOverlay" class="absolute inset-0 flex flex-col items-center justify-center text-white bg-black bg-opacity-60 transition-opacity duration-500">
+                <div id="videoOverlay"
+                    class="absolute inset-0 flex flex-col items-center justify-center text-gray-800 bg-white bg-opacity-60 transition-opacity duration-500">
                     <div id="overlayContent" class="flex flex-col items-center">
-                        <svg class="w-16 h-16 mb-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                        <svg class="w-16 h-16 mb-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z">
+                            </path>
                         </svg>
-                        <p class="text-gray-300 mt-2 text-lg text-center">Video stream akan muncul di sini</p>
+                        <p class="text-gray-600 mt-2 text-lg text-center">Video stream akan muncul di sini</p>
                         <p class="text-gray-500 mt-1 text-sm text-center">Masukkan path stream dan klik Muat</p>
                     </div>
-                    
-                    <!-- Play button for hover state when no stream is loaded -->
+
                     <div id="hoverPlayButton" class="hidden">
-                        <button class="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 transition-all shadow-lg">
+                        <button
+                            class="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 transition-all shadow-lg">
                             <svg class="w-12 h-12" fill="currentColor" viewBox="0 0 20 20">
-                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"></path>
+                                <path fill-rule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                                    clip-rule="evenodd"></path>
                             </svg>
                         </button>
                     </div>
@@ -248,7 +272,6 @@
             </div>
         </main>
     </div>
-
     <script>
         // Variabel global untuk menyimpan instance player
         let activeHlsPlayer = null;
@@ -270,7 +293,7 @@
         const hoverPlayButton = document.getElementById('hoverPlayButton');
         const loadingIndicator = document.getElementById('loadingIndicator');
         const videoContainer = document.querySelector('.video-container');
-        
+
         // Control elements
         const playPauseBtn = document.getElementById('playPauseBtn');
         const playIcon = document.getElementById('playIcon');
@@ -348,7 +371,7 @@
         // Fungsi untuk handle hover effects
         function handleHoverEffects() {
             const isHovering = videoContainer.matches(':hover');
-            
+
             if (!isLoading && !isStreamLoaded && isHovering) {
                 // Jika hover dan belum ada stream, tampilkan tombol play
                 overlayContent.style.display = 'none';
@@ -413,12 +436,15 @@
         // Event listener untuk tombol protokol
         protocolButtons.forEach(button => {
             button.addEventListener('click', () => {
+                // 1. Loop semua tombol untuk mereset-nya ke state tidak aktif
                 protocolButtons.forEach(btn => {
-                    btn.classList.remove('bg-blue-500', 'text-white');
-                    btn.classList.add('text-gray-300', 'hover:bg-gray-700');
+                    btn.classList.remove('active', 'bg-blue-500', 'text-white');
+                    btn.classList.add('text-gray-600', 'hover:bg-gray-300');
                 });
-                button.classList.add('bg-blue-500', 'text-white');
-                button.classList.remove('text-gray-300', 'hover:bg-gray-700');
+
+                // 2. Aktifkan tombol yang baru saja diklik
+                button.classList.add('active', 'bg-blue-500', 'text-white');
+                button.classList.remove('text-gray-600', 'hover:bg-gray-300');
 
                 selectedProtocol = button.dataset.protocol;
                 log(`Protokol diganti menjadi: ${selectedProtocol.toUpperCase()}`);
@@ -471,8 +497,8 @@
         // Keyboard shortcuts
         document.addEventListener('keydown', (e) => {
             if (e.target.tagName === 'INPUT') return;
-            
-            switch(e.code) {
+
+            switch (e.code) {
                 case 'Space':
                     e.preventDefault();
                     playPauseBtn.click();
@@ -538,7 +564,7 @@
                         cleanupPlayers();
                     }
                 });
-                activeHlsPlayer.on(Hls.Events.MANIFEST_LOADED, function() {
+                activeHlsPlayer.on(Hls.Events.MANIFEST_LOADED, function () {
                     isLoading = false;
                     isStreamLoaded = true;
                     loadingIndicator.classList.add('hidden');
@@ -599,8 +625,8 @@
                     });
                 };
 
-                activeWebRtcPeerConnection.addTransceiver('video', {'direction': 'recvonly'});
-                activeWebRtcPeerConnection.addTransceiver('audio', {'direction': 'recvonly'});
+                activeWebRtcPeerConnection.addTransceiver('video', { 'direction': 'recvonly' });
+                activeWebRtcPeerConnection.addTransceiver('audio', { 'direction': 'recvonly' });
 
                 const offer = await activeWebRtcPeerConnection.createOffer();
                 await activeWebRtcPeerConnection.setLocalDescription(offer);
@@ -644,4 +670,5 @@
         });
     </script>
 </body>
+
 </html>
