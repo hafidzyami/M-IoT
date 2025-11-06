@@ -43,16 +43,16 @@ services:
       retries: 3
       start_period: 40s
   
-  mqtt-broker:
-    build:
-      context: ./mqtt-broker # Menggunakan context dari direktori mqtt_broker
-    container_name: mqtt-broker
-    restart: unless-stopped
-    ports:
-      - "1883:1883" # MQTT default port
-      - "9001:9001" # WebSockets port
-    networks:
-      - iot-network
+  # mqtt-broker:
+  #   build:
+  #     context: ./mqtt-broker # Menggunakan context dari direktori mqtt_broker
+  #   container_name: mqtt-broker
+  #   restart: unless-stopped
+  #   ports:
+  #     - "1883:1883" # MQTT default port
+  #     - "9001:9001" # WebSockets port
+  #   networks:
+  #     - iot-network
 
 networks:
   iot-network:

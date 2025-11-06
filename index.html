@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>M-IoT by YB & HS</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Menggunakan font Inter sebagai default */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9fafb;
+            /* Light Lavender - Lebih cerah dari abu-abu */
+            overflow: hidden;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Custom styling untuk video container */
+        .video-container {
+            position: relative;
+            background: #ffffff;
+            /* Tetap putih atau sesuaikan */
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            height: 80vh;
+            display: flex;
+            /* Tambahkan flexbox untuk centering video */
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Styling untuk video element */
+        #videoPlayer {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: transparent;
+            /* Ubah ini menjadi transparan */
+        }
+
+        /* Custom controls overlay */
+        .video-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(255, 255, 255, 0.9));
+            padding: 20px 16px 16px;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .video-container:hover .video-controls {
+            transform: translateY(0);
+        }
+
+        /* Progress bar styling */
+        .progress-container {
+            width: 100%;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 3px;
+            cursor: pointer;
+            margin-bottom: 12px;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: #3b82f6;
+            border-radius: 3px;
+            transition: width 0.1s ease;
+        }
+
+        /* Volume slider */
+        .volume-slider {
+            width: 0;
+            opacity: 0;
+            transition: all 0.3s ease;
+            margin-left: 8px;
+        }
+
+        .volume-container:hover .volume-slider {
+            width: 80px;
+            opacity: 1;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .video-container {
+                width: 95%;
+                height: 70vh;
+            }
+
+            .mobile-controls {
+                display: flex;
+                gap: 8px;
+            }
+
+            .desktop-controls {
+                display: none;
+            }
+        }
+
+        @media (min-width: 769px) {
+            .mobile-controls {
+                display: none;
+            }
+
+            .desktop-controls {
+                display: flex;
+                gap: 12px;
+            }
+        }
+
+        /* Loading spinner */
+        .loading-spinner {
+            border: 3px solid rgba(0, 0, 0, 0.2);
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Styling untuk tombol protokol aktif */
+        .protocol-btn.active {
+            background-color: #3b82f6 !important;
+            /* Biru */
+            color: white !important;
+        }
+    </style>
+</head>
+
+<body class="text-gray-800">
+
+    <div class="flex flex-col h-screen">
+        <header class="bg-white p-3 md:p-4 border-b border-gray-200 shadow-sm flex-shrink-0">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-4 max-w-7xl mx-auto">
+
+                <div class="flex-grow w-full md:w-auto">
+                    <input type="text" id="pathInput" placeholder="Masukkan path stream..."
+                        class="w-full bg-gray-100 text-gray-800 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                </div>
+
+                <div id="protocolSelector" class="flex items-center gap-2 p-1 bg-gray-200 rounded-lg">
+                    <button data-protocol="hls"
+                        class="protocol-btn bg-blue-500 text-white px-4 py-1 rounded-md text-sm font-medium active">LL-HLS</button>
+                    <button data-protocol="webrtc"
+                        class="protocol-btn text-gray-600 hover:bg-gray-300 px-4 py-1 rounded-md text-sm font-medium">WebRTC</button>
+                </div>
+
+                <div class="flex items-center gap-4 w-full md:w-auto justify-end">
+                    <div id="statusLog" class="flex-grow text-sm text-gray-500 truncate hidden md:block text-right">
+                        Menunggu input...</div>
+                    <button onclick="loadStream()"
+                        class="w-full md:w-auto bg-blue-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-700 transition-all shadow-md">
+                        Muat
+                    </button>
+                </div>
+
+            </div>
+        </header>
+
+        <main class="flex-grow flex items-center justify-center p-4 md:p-6 overflow-hidden">
+            <div class="video-container">
+                <video id="videoPlayer" playsinline></video>
+
+                <div id="loadingIndicator"
+                    class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 hidden">
+                    <div class="flex flex-col items-center">
+                        <div class="loading-spinner mb-4"></div>
+                        <p class="text-gray-700 text-sm">Memuat stream...</p>
+                    </div>
+                </div>
+
+                <div class="video-controls">
+                    <div class="progress-container" id="progressContainer">
+                        <div class="progress-bar" id="progressBar"></div>
+                    </div>
+
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <button id="playPauseBtn"
+                                class="text-gray-700 hover:text-blue-500 transition-colors p-2 bg-gray-100 bg-opacity-50 rounded-full hover:bg-opacity-70">
+                                <svg id="playIcon" class="w-8 h-8" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M8 5v14l11-7z" />
+                                </svg>
+                                <svg id="pauseIcon" class="w-8 h-8 hidden" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                                </svg>
+                            </button>
+
+                            <div class="volume-container flex items-center ml-2">
+                                <button id="muteBtn" class="text-gray-700 hover:text-blue-500 transition-colors p-2">
+                                    <svg id="volumeIcon" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd"
+                                            d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.794L4.15 13.5H2a1 1 0 01-1-1v-5a1 1 0 011-1h2.15l4.233-3.294a1 1 0 011.617.794zM12 6a1 1 0 011.414 0 5 5 0 010 7.071A1 1 0 0112 12a3 3 0 000-4.243A1 1 0 0112 6z"
+                                            clip-rule="evenodd"></path>
+                                    </svg>
+                                    <svg id="mutedIcon" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd"
+                                            d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.794L4.15 13.5H2a1 1 0 01-1-1v-5a1 1 0 011-1h2.15l4.233-3.294a1 1 0 011.617.794zM12.293 7.293a1 1 0 011.414 0L15 8.586l1.293-1.293a1 1 0 111.414 1.414L16.414 10l1.293 1.293a1 1 0 01-1.414 1.414L15 11.414l-1.293 1.293a1 1 0 01-1.414-1.414L13.586 10l-1.293-1.293a1 1 0 010-1.414z"
+                                            clip-rule="evenodd"></path>
+                                    </svg>
+                                </button>
+                                <input type="range" id="volumeSlider" class="volume-slider" min="0" max="1" step="0.1"
+                                    value="1">
+                            </div>
+
+                            <span id="timeDisplay" class="text-sm text-gray-600 ml-4">00:00 / 00:00</span>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <select id="qualitySelector"
+                                class="bg-gray-200 text-gray-800 text-sm px-2 py-1 rounded border-gray-300 hidden">
+                                <option>Auto</option>
+                            </select>
+
+                            <button id="fullscreenBtn" class="text-gray-700 hover:text-blue-500 transition-colors p-2">
+                                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M3 4a1 1 0 011-1h4a1 1 0 010 2H6.414l2.293 2.293a1 1 0 11-1.414 1.414L5 6.414V8a1 1 0 01-2 0V4zm9 1a1 1 0 010-2h4a1 1 0 011 1v4a1 1 0 01-2 0V6.414l-2.293 2.293a1 1 0 11-1.414-1.414L13.586 5H12zm-9 7a1 1 0 012 0v1.586l2.293-2.293a1 1 0 111.414 1.414L6.414 15H8a1 1 0 010 2H4a1 1 0 01-1-1v-4zm13-1a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 010-2h1.586l-2.293-2.293a1 1 0 111.414-1.414L15 13.586V12a1 1 0 011-1z"
+                                        clip-rule="evenodd"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="videoOverlay"
+                    class="absolute inset-0 flex flex-col items-center justify-center text-gray-800 bg-white bg-opacity-60 transition-opacity duration-500">
+                    <div id="overlayContent" class="flex flex-col items-center">
+                        <svg class="w-16 h-16 mb-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z">
+                            </path>
+                        </svg>
+                        <p class="text-gray-600 mt-2 text-lg text-center">Video stream akan muncul di sini</p>
+                        <p class="text-gray-500 mt-1 text-sm text-center">Masukkan path stream dan klik Muat</p>
+                    </div>
+
+                    <div id="hoverPlayButton" class="hidden">
+                        <button
+                            class="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 transition-all shadow-lg">
+                            <svg class="w-12 h-12" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd"
+                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
+                                    clip-rule="evenodd"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script>
+        // Variabel global untuk menyimpan instance player
+        let activeHlsPlayer = null;
+        let activeWebRtcPeerConnection = null;
+        let selectedProtocol = 'hls';
+        let isPlaying = false;
+        let currentTime = 0;
+        let duration = 0;
+        let isStreamLoaded = false;
+        let isLoading = false;
+
+        // Element references
+        const pathInput = document.getElementById('pathInput');
+        const videoPlayer = document.getElementById('videoPlayer');
+        const statusLog = document.getElementById('statusLog');
+        const protocolButtons = document.querySelectorAll('.protocol-btn');
+        const videoOverlay = document.getElementById('videoOverlay');
+        const overlayContent = document.getElementById('overlayContent');
+        const hoverPlayButton = document.getElementById('hoverPlayButton');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const videoContainer = document.querySelector('.video-container');
+
+        // Control elements
+        const playPauseBtn = document.getElementById('playPauseBtn');
+        const playIcon = document.getElementById('playIcon');
+        const pauseIcon = document.getElementById('pauseIcon');
+        const muteBtn = document.getElementById('muteBtn');
+        const volumeIcon = document.getElementById('volumeIcon');
+        const mutedIcon = document.getElementById('mutedIcon');
+        const volumeSlider = document.getElementById('volumeSlider');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const timeDisplay = document.getElementById('timeDisplay');
+        const fullscreenBtn = document.getElementById('fullscreenBtn');
+
+        // Fungsi untuk mencatat log
+        function log(message) {
+            console.log(message);
+            statusLog.textContent = message;
+        }
+
+        // Fungsi untuk format waktu
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const remainingSeconds = Math.floor(seconds % 60);
+            return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+        }
+
+        // Fungsi untuk update progress bar
+        function updateProgress() {
+            if (videoPlayer.duration) {
+                const progress = (videoPlayer.currentTime / videoPlayer.duration) * 100;
+                progressBar.style.width = progress + '%';
+                timeDisplay.textContent = `${formatTime(videoPlayer.currentTime)} / ${formatTime(videoPlayer.duration)}`;
+            }
+        }
+
+        // Fungsi untuk update overlay visibility berdasarkan state
+        function updateOverlayVisibility() {
+            if (isLoading) {
+                // Saat loading: sembunyikan overlay text, tampilkan loading
+                videoOverlay.style.opacity = '1';
+                overlayContent.style.display = 'none';
+                hoverPlayButton.classList.add('hidden');
+            } else if (isStreamLoaded) {
+                // Saat stream berhasil: sembunyikan semua overlay
+                videoOverlay.style.opacity = '0';
+            } else {
+                // Default: tampilkan text instruction
+                videoOverlay.style.opacity = '1';
+                overlayContent.style.display = 'flex';
+                hoverPlayButton.classList.add('hidden');
+            }
+        }
+
+        // Fungsi untuk membersihkan semua player
+        function cleanupPlayers() {
+            log("Membersihkan player sebelumnya...");
+            if (activeHlsPlayer) {
+                activeHlsPlayer.destroy();
+                activeHlsPlayer = null;
+            }
+            if (activeWebRtcPeerConnection) {
+                activeWebRtcPeerConnection.close();
+                activeWebRtcPeerConnection = null;
+            }
+            videoPlayer.src = "";
+            videoPlayer.srcObject = null;
+            isPlaying = false;
+            isStreamLoaded = false;
+            isLoading = false;
+            loadingIndicator.classList.add('hidden');
+            updatePlayPauseButton();
+            updateOverlayVisibility();
+        }
+
+        // Fungsi untuk handle hover effects
+        function handleHoverEffects() {
+            const isHovering = videoContainer.matches(':hover');
+
+            if (!isLoading && !isStreamLoaded && isHovering) {
+                // Jika hover dan belum ada stream, tampilkan tombol play
+                overlayContent.style.display = 'none';
+                hoverPlayButton.classList.remove('hidden');
+            } else if (!isLoading && !isStreamLoaded) {
+                // Default: tampilkan teks instruction
+                overlayContent.style.display = 'flex';
+                hoverPlayButton.classList.add('hidden');
+            }
+        }
+
+        // Fungsi untuk update tombol play/pause
+        function updatePlayPauseButton() {
+            if (isPlaying) {
+                playIcon.classList.add('hidden');
+                pauseIcon.classList.remove('hidden');
+            } else {
+                playIcon.classList.remove('hidden');
+                pauseIcon.classList.add('hidden');
+            }
+        }
+
+        // Event listeners untuk kontrol video
+        playPauseBtn.addEventListener('click', () => {
+            if (videoPlayer.paused) {
+                videoPlayer.play();
+            } else {
+                videoPlayer.pause();
+            }
+        });
+
+        muteBtn.addEventListener('click', () => {
+            videoPlayer.muted = !videoPlayer.muted;
+            volumeIcon.classList.toggle('hidden', videoPlayer.muted);
+            mutedIcon.classList.toggle('hidden', !videoPlayer.muted);
+        });
+
+        volumeSlider.addEventListener('input', (e) => {
+            videoPlayer.volume = e.target.value;
+            videoPlayer.muted = e.target.value == 0;
+            volumeIcon.classList.toggle('hidden', videoPlayer.muted);
+            mutedIcon.classList.toggle('hidden', !videoPlayer.muted);
+        });
+
+        progressContainer.addEventListener('click', (e) => {
+            if (videoPlayer.duration) {
+                const rect = progressContainer.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const clickRatio = clickX / rect.width;
+                videoPlayer.currentTime = clickRatio * videoPlayer.duration;
+            }
+        });
+
+        fullscreenBtn.addEventListener('click', () => {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                videoPlayer.closest('.video-container').requestFullscreen();
+            }
+        });
+
+        // Event listener untuk tombol protokol
+        protocolButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // 1. Loop semua tombol untuk mereset-nya ke state tidak aktif
+                protocolButtons.forEach(btn => {
+                    btn.classList.remove('active', 'bg-blue-500', 'text-white');
+                    btn.classList.add('text-gray-600', 'hover:bg-gray-300');
+                });
+
+                // 2. Aktifkan tombol yang baru saja diklik
+                button.classList.add('active', 'bg-blue-500', 'text-white');
+                button.classList.remove('text-gray-600', 'hover:bg-gray-300');
+
+                selectedProtocol = button.dataset.protocol;
+                log(`Protokol diganti menjadi: ${selectedProtocol.toUpperCase()}`);
+            });
+        });
+
+        // Event listeners untuk video player
+        videoPlayer.addEventListener('loadstart', () => {
+            isLoading = true;
+            loadingIndicator.classList.remove('hidden');
+            updateOverlayVisibility();
+        });
+
+        videoPlayer.addEventListener('loadeddata', () => {
+            isLoading = false;
+            isStreamLoaded = true;
+            loadingIndicator.classList.add('hidden');
+            updateOverlayVisibility();
+        });
+
+        videoPlayer.addEventListener('play', () => {
+            isPlaying = true;
+            updatePlayPauseButton();
+        });
+
+        videoPlayer.addEventListener('pause', () => {
+            isPlaying = false;
+            updatePlayPauseButton();
+        });
+
+        videoPlayer.addEventListener('timeupdate', updateProgress);
+
+        videoPlayer.addEventListener('error', (e) => {
+            const errorMsg = `Error video: ${e.message || 'Unknown error'}`;
+            log(errorMsg);
+            alert(errorMsg);
+            isLoading = false;
+            isStreamLoaded = false;
+            loadingIndicator.classList.add('hidden');
+            updateOverlayVisibility();
+        });
+
+        // Mouse events untuk hover effect pada video container
+        videoContainer.addEventListener('mouseenter', handleHoverEffects);
+        videoContainer.addEventListener('mouseleave', handleHoverEffects);
+
+        // Click event untuk hover play button
+        hoverPlayButton.addEventListener('click', loadStream);
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.target.tagName === 'INPUT') return;
+
+            switch (e.code) {
+                case 'Space':
+                    e.preventDefault();
+                    playPauseBtn.click();
+                    break;
+                case 'KeyM':
+                    muteBtn.click();
+                    break;
+                case 'KeyF':
+                    fullscreenBtn.click();
+                    break;
+                case 'ArrowLeft':
+                    videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 10);
+                    break;
+                case 'ArrowRight':
+                    videoPlayer.currentTime = Math.min(videoPlayer.duration, videoPlayer.currentTime + 10);
+                    break;
+            }
+        });
+
+        // Fungsi utama untuk memuat stream
+        function loadStream() {
+            const path = pathInput.value.trim();
+            if (!path) {
+                alert("Path stream tidak boleh kosong!");
+                return;
+            }
+
+            cleanupPlayers();
+            isLoading = true;
+            loadingIndicator.classList.remove('hidden');
+            updateOverlayVisibility();
+            log(`Mencoba memuat stream "${path}" dengan protokol ${selectedProtocol.toUpperCase()}...`);
+
+            switch (selectedProtocol) {
+                case 'hls':
+                    loadHls(path);
+                    break;
+                case 'webrtc':
+                    loadWebRtc(path);
+                    break;
+                default:
+                    log("Protokol tidak valid.");
+            }
+        }
+
+        // Fungsi untuk memuat HLS
+        function loadHls(path) {
+            const url = `/${path}/index.m3u8`;
+            if (Hls.isSupported()) {
+                log(`Memuat HLS dari: ${url}`);
+                activeHlsPlayer = new Hls();
+                activeHlsPlayer.loadSource(url);
+                activeHlsPlayer.attachMedia(videoPlayer);
+                activeHlsPlayer.on(Hls.Events.ERROR, function (event, data) {
+                    if (data.fatal) {
+                        const errorMsg = `Error HLS fatal: ${data.details}\n Tolong Masukkan Path yang benar!`;
+                        log(errorMsg);
+                        alert(errorMsg);
+                        isLoading = false;
+                        isStreamLoaded = false;
+                        loadingIndicator.classList.add('hidden');
+                        updateOverlayVisibility();
+                        cleanupPlayers();
+                    }
+                });
+                activeHlsPlayer.on(Hls.Events.MANIFEST_LOADED, function () {
+                    isLoading = false;
+                    isStreamLoaded = true;
+                    loadingIndicator.classList.add('hidden');
+                    updateOverlayVisibility();
+                    videoPlayer.play().catch(e => {
+                        log("Autoplay diblokir browser, klik play untuk memulai");
+                    });
+                });
+            } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
+                log(`Memuat HLS native dari: ${url}`);
+                videoPlayer.src = url;
+                videoPlayer.addEventListener('loadeddata', () => {
+                    isLoading = false;
+                    isStreamLoaded = true;
+                    loadingIndicator.classList.add('hidden');
+                    updateOverlayVisibility();
+                }, { once: true });
+                videoPlayer.addEventListener('error', () => {
+                    const errorMsg = 'Error: Gagal memuat stream HLS';
+                    log(errorMsg);
+                    alert(errorMsg);
+                    isLoading = false;
+                    isStreamLoaded = false;
+                    loadingIndicator.classList.add('hidden');
+                    updateOverlayVisibility();
+                    cleanupPlayers();
+                }, { once: true });
+                videoPlayer.play().catch(e => {
+                    log("Autoplay diblokir browser, klik play untuk memulai");
+                });
+            } else {
+                const errorMsg = 'Browser tidak mendukung HLS';
+                log(errorMsg);
+                alert(errorMsg);
+                isLoading = false;
+                loadingIndicator.classList.add('hidden');
+                updateOverlayVisibility();
+            }
+        }
+
+        // Fungsi untuk memuat WebRTC
+        async function loadWebRtc(path) {
+            const url = `/${path}/whep`;
+            log(`Memulai koneksi WebRTC (WHEP) ke: ${url}`);
+
+            try {
+                activeWebRtcPeerConnection = new RTCPeerConnection();
+
+                activeWebRtcPeerConnection.ontrack = (event) => {
+                    log("Track video/audio diterima.");
+                    isLoading = false;
+                    isStreamLoaded = true;
+                    loadingIndicator.classList.add('hidden');
+                    updateOverlayVisibility();
+                    videoPlayer.srcObject = event.streams[0];
+                    videoPlayer.play().catch(e => {
+                        log("Autoplay diblokir browser, klik play untuk memulai");
+                    });
+                };
+
+                activeWebRtcPeerConnection.addTransceiver('video', { 'direction': 'recvonly' });
+                activeWebRtcPeerConnection.addTransceiver('audio', { 'direction': 'recvonly' });
+
+                const offer = await activeWebRtcPeerConnection.createOffer();
+                await activeWebRtcPeerConnection.setLocalDescription(offer);
+
+                log("Mengirim SDP offer ke server...");
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/sdp' },
+                    body: activeWebRtcPeerConnection.localDescription.sdp,
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server response: ${response.status} ${response.statusText}`);
+                }
+
+                log("Menerima SDP answer dari server...");
+                const answerSdp = await response.text();
+                await activeWebRtcPeerConnection.setRemoteDescription({
+                    type: 'answer',
+                    sdp: answerSdp,
+                });
+                log("Koneksi WebRTC berhasil dibuat.");
+
+            } catch (error) {
+                const errorMsg = `Koneksi WebRTC gagal: ${error.message}`;
+                log(errorMsg);
+                alert(errorMsg);
+                isLoading = false;
+                isStreamLoaded = false;
+                loadingIndicator.classList.add('hidden');
+                updateOverlayVisibility();
+                cleanupPlayers();
+            }
+        }
+
+        // Enter key untuk load stream
+        pathInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                loadStream();
+            }
+        });
+    </script>
+</body>
+
+</html>

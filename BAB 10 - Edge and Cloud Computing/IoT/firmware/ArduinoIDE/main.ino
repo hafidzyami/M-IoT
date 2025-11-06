@@ -2,20 +2,20 @@
 #include <PubSubClient.h>
 #include <Wire.h>
 #include <Adafruit_BMP280.h>
-#include <ESP32Servo.h>
+#include <ESP32_Servo.h>
 
 // WiFi credentials
-const char* ssid = "hafidzyami";
-const char* password = "hafidz";
+const char* ssid = "Bandung";
+const char* password = "ybandung";
 
 // MQTT Broker settings
-const char* mqtt_server = "reksti.profybandung.cloud";
+const char* mqtt_server = "iot.profybandung.cloud";
 const int mqtt_port = 1883;
 
 // MQTT Topics
-const char* led_topic = "reksti-yb/led";
-const char* servo_topic = "reksti-yb/servo";
-const char* sensor_topic = "reksti-yb/sensor";
+const char* led_topic = "miotybhs/led";
+const char* servo_topic = "miotybhs/servo";
+const char* sensor_topic = "miotybhs/data";
 
 // Pin definitions - Using available pins
 const int LED_PIN = 25;      // Using GPIO 25 for LED
@@ -118,15 +118,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
 void publishSensorData() {
   float temperature = bmp.readTemperature();
   float pressure = bmp.readPressure() / 100.0F; // Convert to hPa
-  
-  // BMP280 doesn't have humidity sensor, so we'll send 0
-  // If you have BME280, you can read humidity here
-  float humidity = 0.0;
-  
+  float altitude = bmp.readAltitude(1013.25); // Adjusted to sea level pressure
+
   String jsonData = "{";
   jsonData += "\"temperature\":" + String(temperature, 2) + ",";
   jsonData += "\"pressure\":" + String(pressure, 2) + ",";
-  jsonData += "\"humidity\":" + String(humidity, 2);
+  jsonData += "\"altitude\":" + String(altitude, 2);
   jsonData += "}";
   
   client.publish(sensor_topic, jsonData.c_str());
@@ -166,7 +163,7 @@ void setup() {
   myServo.attach(SERVO_PIN);
   myServo.write(0);
   
-  // Initialize I2C with custom pins - This must be done before initializing BMP280
+  // Initialize I2C with custom pins
   Wire.begin(SDA_PIN, SCL_PIN);
   
   // Initialize BMP280
@@ -174,14 +171,8 @@ void setup() {
     Serial.println("Could not find BMP280 sensor at 0x76, trying 0x77...");
     if (!bmp.begin(0x77)) {  // Try address 0x77
       Serial.println("Could not find BMP280 sensor!");
-      Serial.println("Check wiring!");
-      while (1) {
-        delay(1000);
-      }
     }
   }
-  
-  Serial.println("BMP280 sensor found!");
   
   // Configure BMP280
   bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,
