@@ -19,8 +19,8 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    depends_on:
-      - mqtt-broker
+    # depends_on:
+    #   - mqtt-broker
 
   frontend:
     build:
