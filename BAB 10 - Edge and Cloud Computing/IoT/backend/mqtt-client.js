@@ -3,7 +3,8 @@ const axios = require('axios');
 require('dotenv').config();
 
 // MQTT Configuration
-const MQTT_BROKER = 'mqtt://iot.profybandung.cloud';
+// const MQTT_BROKER = 'mqtt://iot.profybandung.cloud';
+const MQTT_BROKER = 'mqtt://host.docker.internal:1883';
 const MQTT_TOPIC = 'miotybhs/data';
 const API_URL = `http://localhost:${process.env.PORT || 8000}/api/iot`;
 
