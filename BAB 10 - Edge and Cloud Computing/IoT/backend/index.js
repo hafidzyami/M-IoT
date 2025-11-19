@@ -1,6 +1,6 @@
 const express = require('express');
 const cors = require('cors');
-const { createClient } = require('@supabase/supabase-js');
+const { Pool } = require('pg');
 const swaggerUi = require('swagger-ui-express');
 const swaggerJsdoc = require('swagger-jsdoc');
 const http = require('http');
@@ -29,6 +29,24 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Initialize PostgreSQL connection pool
+const pool = new Pool({
+  host: process.env.POSTGRES_HOST,
+  port: process.env.POSTGRES_PORT,
+  database: process.env.POSTGRES_DB,
+  user: process.env.POSTGRES_USER,
+  password: process.env.POSTGRES_PASSWORD,
+});
+
+// Test database connection
+pool.query('SELECT NOW()', (err, res) => {
+  if (err) {
+    console.error('Error connecting to PostgreSQL:', err);
+  } else {
+    console.log('PostgreSQL connected successfully at:', res.rows[0].now);
+  }
+});
+
 // Swagger configuration
 const swaggerOptions = {
   definition: {
@@ -36,7 +54,7 @@ const swaggerOptions = {
     info: {
       title: 'IoT Backend API',
       version: '1.0.0',
-      description: 'API for managing IoT sensor data with Supabase',
+      description: 'API for managing IoT sensor data with PostgreSQL',
       contact: {
         name: 'API Support',
         email: 'support@example.com'
@@ -157,12 +175,6 @@ const swaggerSpec = swaggerJsdoc(swaggerOptions);
 // Swagger UI setup
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_KEY
-);
-
 // Add WebSocket status endpoint
 /**
  * @swagger
@@ -237,28 +249,19 @@ app.post('/api/iot', async (req, res) => {
     const { altitude, pressure, temperature } = req.body;
 
     if (!altitude || !pressure || !temperature) {
-      return res.status(400).json({ 
-        error: 'Missing required fields: altitude, pressure, or temperature' 
+      return res.status(400).json({
+        error: 'Missing required fields: altitude, pressure, or temperature'
       });
     }
 
-    const { data, error } = await supabase
-      .from('iot')
-      .insert([
-        {
-          altitude: parseFloat(altitude),
-          pressure: parseFloat(pressure),
-          temperature: parseFloat(temperature),
-          timestamp: new Date().toISOString()
-        }
-      ])
-      .select();
-
-    if (error) throw error;
+    const result = await pool.query(
+      'INSERT INTO iot (altitude, pressure, temperature, timestamp) VALUES ($1, $2, $3, $4) RETURNING *',
+      [parseFloat(altitude), parseFloat(pressure), parseFloat(temperature), new Date()]
+    );
 
     res.status(201).json({
       message: 'Data inserted successfully',
-      data: data[0]
+      data: result.rows[0]
     });
   } catch (error) {
     console.error('Error inserting data:', error);
@@ -291,14 +294,11 @@ app.post('/api/iot', async (req, res) => {
  */
 app.get('/api/iot', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('iot')
-      .select('*')
-      .order('timestamp', { ascending: false });
+    const result = await pool.query(
+      'SELECT * FROM iot ORDER BY timestamp DESC'
+    );
 
-    if (error) throw error;
-
-    res.json(data);
+    res.json(result.rows);
   } catch (error) {
     console.error('Error fetching data:', error);
     res.status(500).json({ error: error.message });
@@ -343,19 +343,16 @@ app.get('/api/iot/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    const { data, error } = await supabase
-      .from('iot')
-      .select('*')
-      .eq('id', id)
-      .single();
+    const result = await pool.query(
+      'SELECT * FROM iot WHERE id = $1',
+      [id]
+    );
 
-    if (error) throw error;
-
-    if (!data) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Data not found' });
     }
 
-    res.json(data);
+    res.json(result.rows[0]);
   } catch (error) {
     console.error('Error fetching data:', error);
     res.status(500).json({ error: error.message });
@@ -405,21 +402,23 @@ app.get('/api/iot/page/:page', async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
 
-    const { data, error, count } = await supabase
-      .from('iot')
-      .select('*', { count: 'exact' })
-      .order('timestamp', { ascending: false })
-      .range(offset, offset + limit - 1);
+    // Get total count
+    const countResult = await pool.query('SELECT COUNT(*) FROM iot');
+    const totalCount = parseInt(countResult.rows[0].count);
 
-    if (error) throw error;
+    // Get paginated data
+    const dataResult = await pool.query(
+      'SELECT * FROM iot ORDER BY timestamp DESC LIMIT $1 OFFSET $2',
+      [limit, offset]
+    );
 
     res.json({
-      data,
+      data: dataResult.rows,
       pagination: {
         page,
         limit,
-        total: count,
-        totalPages: Math.ceil(count / limit)
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit)
       }
     });
   } catch (error) {
@@ -477,21 +476,17 @@ app.get('/api/iot/range', async (req, res) => {
     const { start, end } = req.query;
 
     if (!start || !end) {
-      return res.status(400).json({ 
-        error: 'Missing required query parameters: start and end dates' 
+      return res.status(400).json({
+        error: 'Missing required query parameters: start and end dates'
       });
     }
 
-    const { data, error } = await supabase
-      .from('iot')
-      .select('*')
-      .gte('timestamp', start)
-      .lte('timestamp', end)
-      .order('timestamp', { ascending: false });
+    const result = await pool.query(
+      'SELECT * FROM iot WHERE timestamp >= $1 AND timestamp <= $2 ORDER BY timestamp DESC',
+      [start, end]
+    );
 
-    if (error) throw error;
-
-    res.json(data);
+    res.json(result.rows);
   } catch (error) {
     console.error('Error fetching data:', error);
     res.status(500).json({ error: error.message });
