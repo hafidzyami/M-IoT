@@ -369,7 +369,7 @@ const ServoControl: React.FC<ServoControlProps> = ({ socket }) => {
               max="180"
               value={angle}
               onChange={handleSliderChange}
-              onInput={handleSliderChange}
+              // onInput={handleSliderChange}
               className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
             />
             <div className="flex justify-between text-[10px] sm:text-xs text-gray-500 mt-1">
