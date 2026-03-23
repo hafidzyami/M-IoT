@@ -1,4 +1,4 @@
-webrtcAdditionalHosts: [57.155.88.50]
+webrtcAdditionalHosts: [YOUR_HOSTNAME_OR_IP]
 
 hlsSegmentCount: 300
 
