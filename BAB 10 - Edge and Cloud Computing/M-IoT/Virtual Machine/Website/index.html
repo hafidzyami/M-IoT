@@ -546,7 +546,7 @@
 
         // Fungsi untuk memuat HLS
         function loadHls(path) {
-            const url = `/${path}/index.m3u8`;
+            const url = `/hls/${path}/index.m3u8`;
             if (Hls.isSupported()) {
                 log(`Memuat HLS dari: ${url}`);
                 activeHlsPlayer = new Hls();
@@ -607,7 +607,7 @@
 
         // Fungsi untuk memuat WebRTC
         async function loadWebRtc(path) {
-            const url = `/${path}/whep`;
+            const url = `/webrtc/${path}/whep`;
             log(`Memulai koneksi WebRTC (WHEP) ke: ${url}`);
 
             try {
