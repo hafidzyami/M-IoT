@@ -55,6 +55,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        INTERNAL_API_URL: http://backend:8000
     container_name: iot-frontend
     ports:
       - "3000:3000"

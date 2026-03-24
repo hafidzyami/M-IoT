@@ -12,6 +12,10 @@ RUN npm ci
 # Copy all files
 COPY . .
 
+# Accept build arg for server-side proxy destination
+ARG INTERNAL_API_URL=http://localhost:8000
+ENV INTERNAL_API_URL=$INTERNAL_API_URL
+
 # Build the Next.js application
 RUN npm run build
 
