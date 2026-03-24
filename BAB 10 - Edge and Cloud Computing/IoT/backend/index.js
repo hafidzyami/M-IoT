@@ -307,60 +307,6 @@ app.get('/api/iot', async (req, res) => {
 
 /**
  * @swagger
- * /api/iot/{id}:
- *   get:
- *     summary: Get IoT data by ID
- *     description: Retrieve specific sensor data by its ID
- *     tags: [IoT]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: IoT data ID
- *     responses:
- *       200:
- *         description: Successful response
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/IoTData'
- *       404:
- *         description: Data not found
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- *       500:
- *         description: Server error
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/Error'
- */
-app.get('/api/iot/:id', async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const result = await pool.query(
-      'SELECT * FROM iot WHERE id = $1',
-      [id]
-    );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Data not found' });
-    }
-
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Error fetching data:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-/**
- * @swagger
  * /api/iot/page/{page}:
  *   get:
  *     summary: Get paginated IoT data
@@ -487,6 +433,60 @@ app.get('/api/iot/range', async (req, res) => {
     );
 
     res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching data:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * @swagger
+ * /api/iot/{id}:
+ *   get:
+ *     summary: Get IoT data by ID
+ *     description: Retrieve specific sensor data by its ID
+ *     tags: [IoT]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
+ *         description: IoT data ID
+ *     responses:
+ *       200:
+ *         description: Successful response
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/IoTData'
+ *       404:
+ *         description: Data not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+app.get('/api/iot/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      'SELECT * FROM iot WHERE id = $1',
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Data not found' });
+    }
+
+    res.json(result.rows[0]);
   } catch (error) {
     console.error('Error fetching data:', error);
     res.status(500).json({ error: error.message });

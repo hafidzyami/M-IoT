@@ -45,6 +45,22 @@ export const fetchDataByRange = async (start: string, end: string): Promise<IoTD
   }
 };
 
+export const fetchPaginatedData = async (
+  page: number,
+  limit: number = 20
+): Promise<{ data: IoTData[]; pagination: { page: number; limit: number; total: number; totalPages: number } }> => {
+  try {
+    const response = await fetch(`${API_ENDPOINT}/iot/page/${page}?limit=${limit}`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch paginated data');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching paginated data:', error);
+    return { data: [], pagination: { page, limit, total: 0, totalPages: 0 } };
+  }
+};
+
 export const checkSocketStatus = async (): Promise<{ status: string; connectedClients: number; socketUrl: string }> => {
   try {
     const response = await fetch(`${API_BASE_URL}/ws/status`);

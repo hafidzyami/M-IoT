@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import AnimatedRealtimeChart from "./AnimatedRealtimeChart";
+import HistoricalData from "./HistoricalData";
 import LedControl from "./LedControl";
 import ServoControl from "./ServoControl";
 import { IoTData, WebSocketMessage } from "../types/iot";
@@ -237,6 +238,11 @@ const IoTDashboard: React.FC = () => {
           gradientTo="rgba(168, 85, 247, 0.2)"
           unit=" hPa"
         />
+      </div>
+
+      {/* Historical Data Table */}
+      <div className="mt-6 sm:mt-8">
+        <HistoricalData />
       </div>
     </div>
   );
