@@ -352,14 +352,18 @@
             if (isLoading) {
                 // When loading: hide overlay text, show loading indicator
                 videoOverlay.style.opacity = '1';
+                videoOverlay.style.pointerEvents = '';
                 overlayContent.style.display = 'none';
                 hoverPlayButton.classList.add('hidden');
             } else if (isStreamLoaded) {
-                // When stream is loaded: hide all overlays
+                // When stream is loaded: hide overlay AND remove it from the hit
+                // target stack so clicks reach the controls underneath.
                 videoOverlay.style.opacity = '0';
+                videoOverlay.style.pointerEvents = 'none';
             } else {
                 // Default: show instruction text
                 videoOverlay.style.opacity = '1';
+                videoOverlay.style.pointerEvents = '';
                 overlayContent.style.display = 'flex';
                 hoverPlayButton.classList.add('hidden');
             }
