@@ -76,6 +76,14 @@
             transition: width 0.1s ease;
         }
 
+        /* When the stream is live-only (WebRTC), the progress bar isn't seekable. */
+        .progress-container.live-only {
+            cursor: default;
+        }
+        .progress-container.live-only .progress-bar {
+            background: #ef4444;
+        }
+
         /* Volume slider */
         .volume-slider {
             width: 0;
@@ -277,6 +285,7 @@
         let duration = 0;
         let isStreamLoaded = false;
         let isLoading = false;
+        let isScrubbing = false;
 
         // Element references
         const pathInput = document.getElementById('pathInput');
@@ -316,9 +325,16 @@
         }
 
         // Function to update the progress bar.
-        // For live DVR streams videoPlayer.duration is Infinity, so we must
-        // use videoPlayer.seekable to determine the DVR window.
+        // - WebRTC is a live MediaStream with no meaningful DVR window — show LIVE.
+        // - For LL-HLS, use videoPlayer.seekable (duration is Infinity for live).
+        // - While the user is scrubbing, do not fight them with timeupdate paints.
         function updateProgress() {
+            if (isScrubbing) return;
+            if (selectedProtocol === 'webrtc' || videoPlayer.srcObject) {
+                progressBar.style.width = '100%';
+                timeDisplay.textContent = 'LIVE';
+                return;
+            }
             const sk = videoPlayer.seekable;
             if (!sk || sk.length === 0) return;
             const start = sk.start(0);
@@ -423,15 +439,73 @@
             mutedIcon.classList.toggle('hidden', !videoPlayer.muted);
         });
 
-        progressContainer.addEventListener('click', (e) => {
+        // Drag-to-scrub support for the LL-HLS DVR window.
+        // Disabled for WebRTC since it has no real DVR window.
+        function getClientX(e) {
+            if (e.touches && e.touches.length) return e.touches[0].clientX;
+            if (e.changedTouches && e.changedTouches.length) return e.changedTouches[0].clientX;
+            return e.clientX;
+        }
+
+        function seekFromEvent(e) {
             const sk = videoPlayer.seekable;
             if (!sk || sk.length === 0) return;
             const start = sk.start(0);
             const end = sk.end(sk.length - 1);
             if (end <= start) return;
             const rect = progressContainer.getBoundingClientRect();
-            const clickRatio = (e.clientX - rect.left) / rect.width;
-            videoPlayer.currentTime = start + clickRatio * (end - start);
+            let ratio = (getClientX(e) - rect.left) / rect.width;
+            ratio = Math.max(0, Math.min(1, ratio));
+            const target = start + ratio * (end - start);
+            // Repaint the bar live so the user gets visual feedback while dragging.
+            progressBar.style.width = (ratio * 100) + '%';
+            timeDisplay.textContent =
+                `${formatTime(target - start)} / ${formatTime(end - start)}`;
+            videoPlayer.currentTime = target;
+        }
+
+        function isScrubAllowed() {
+            // No scrubbing on live WebRTC, and not before a stream is loaded.
+            if (selectedProtocol === 'webrtc' || videoPlayer.srcObject) return false;
+            if (!isStreamLoaded) return false;
+            const sk = videoPlayer.seekable;
+            return !!(sk && sk.length && sk.end(sk.length - 1) > sk.start(0));
+        }
+
+        progressContainer.addEventListener('mousedown', (e) => {
+            if (!isScrubAllowed()) return;
+            isScrubbing = true;
+            seekFromEvent(e);
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isScrubbing) return;
+            seekFromEvent(e);
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            if (!isScrubbing) return;
+            seekFromEvent(e);
+            isScrubbing = false;
+        });
+
+        // Touch equivalents for mobile.
+        progressContainer.addEventListener('touchstart', (e) => {
+            if (!isScrubAllowed()) return;
+            isScrubbing = true;
+            seekFromEvent(e);
+        }, { passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!isScrubbing) return;
+            seekFromEvent(e);
+        }, { passive: true });
+
+        document.addEventListener('touchend', (e) => {
+            if (!isScrubbing) return;
+            seekFromEvent(e);
+            isScrubbing = false;
         });
 
         fullscreenBtn.addEventListener('click', () => {
@@ -457,6 +531,7 @@
 
                 selectedProtocol = button.dataset.protocol;
                 log(`Protocol changed to: ${selectedProtocol.toUpperCase()}`);
+                progressContainer.classList.toggle('live-only', selectedProtocol === 'webrtc');
             });
         });
 
