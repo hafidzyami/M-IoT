@@ -1,6 +1,13 @@
-webrtcAdditionalHosts: [YOUR_HOSTNAME_OR_IP]
+# Advertise our public hostname in WebRTC ICE candidates so remote browsers
+# can actually reach the media UDP port (8189/udp must be open on the VPS).
+webrtcAdditionalHosts: [miot.profybandung.cloud]
 
-hlsSegmentCount: 300
+# Real LL-HLS: partial segments, low latency, DVR window ~5 minutes.
+hlsVariant: lowLatency
+hlsSegmentCount: 300          # 300 x 1s = ~5 min DVR buffer
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
+hlsAllowOrigin: '*'
 
 paths:
   all_others: {}

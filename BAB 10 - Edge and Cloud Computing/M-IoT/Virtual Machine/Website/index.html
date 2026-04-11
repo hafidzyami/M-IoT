@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
@@ -11,40 +11,36 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Menggunakan font Inter sebagai default */
+        /* Using Inter font as default */
         body {
             font-family: 'Inter', sans-serif;
             background-color: #f9fafb;
-            /* Light Lavender - Lebih cerah dari abu-abu */
             overflow: hidden;
             height: 100vh;
             margin: 0;
             padding: 0;
         }
 
-        /* Custom styling untuk video container */
+        /* Custom styling for video container */
         .video-container {
             position: relative;
             background: #ffffff;
-            /* Tetap putih atau sesuaikan */
             border-radius: 12px;
             overflow: hidden;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
             width: 90%;
             height: 80vh;
             display: flex;
-            /* Tambahkan flexbox untuk centering video */
             justify-content: center;
             align-items: center;
         }
 
-        /* Styling untuk video element */
+        /* Styling for video element */
         #videoPlayer {
             width: 100%;
             height: 100%;
             object-fit: contain;
             background: transparent;
-            /* Ubah ini menjadi transparan */
         }
 
         /* Custom controls overlay */
@@ -141,10 +137,9 @@
             }
         }
 
-        /* Styling untuk tombol protokol aktif */
+        /* Styling for active protocol button */
         .protocol-btn.active {
             background-color: #3b82f6 !important;
-            /* Biru */
             color: white !important;
         }
     </style>
@@ -157,7 +152,7 @@
             <div class="flex flex-col md:flex-row items-center justify-between gap-4 max-w-7xl mx-auto">
 
                 <div class="flex-grow w-full md:w-auto">
-                    <input type="text" id="pathInput" placeholder="Masukkan path stream..."
+                    <input type="text" id="pathInput" placeholder="Enter stream path..."
                         class="w-full bg-gray-100 text-gray-800 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
                 </div>
 
@@ -170,10 +165,10 @@
 
                 <div class="flex items-center gap-4 w-full md:w-auto justify-end">
                     <div id="statusLog" class="flex-grow text-sm text-gray-500 truncate hidden md:block text-right">
-                        Menunggu input...</div>
+                        Waiting for input...</div>
                     <button onclick="loadStream()"
                         class="w-full md:w-auto bg-blue-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-700 transition-all shadow-md">
-                        Muat
+                        Load
                     </button>
                 </div>
 
@@ -188,7 +183,7 @@
                     class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 hidden">
                     <div class="flex flex-col items-center">
                         <div class="loading-spinner mb-4"></div>
-                        <p class="text-gray-700 text-sm">Memuat stream...</p>
+                        <p class="text-gray-700 text-sm">Loading stream...</p>
                     </div>
                 </div>
 
@@ -254,8 +249,8 @@
                                 d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z">
                             </path>
                         </svg>
-                        <p class="text-gray-600 mt-2 text-lg text-center">Video stream akan muncul di sini</p>
-                        <p class="text-gray-500 mt-1 text-sm text-center">Masukkan path stream dan klik Muat</p>
+                        <p class="text-gray-600 mt-2 text-lg text-center">Video stream will appear here</p>
+                        <p class="text-gray-500 mt-1 text-sm text-center">Enter a stream path and click Load</p>
                     </div>
 
                     <div id="hoverPlayButton" class="hidden">
@@ -273,7 +268,7 @@
         </main>
     </div>
     <script>
-        // Variabel global untuk menyimpan instance player
+        // Global variables to store player instances
         let activeHlsPlayer = null;
         let activeWebRtcPeerConnection = null;
         let selectedProtocol = 'hls';
@@ -307,49 +302,59 @@
         const timeDisplay = document.getElementById('timeDisplay');
         const fullscreenBtn = document.getElementById('fullscreenBtn');
 
-        // Fungsi untuk mencatat log
+        // Function to log messages
         function log(message) {
             console.log(message);
             statusLog.textContent = message;
         }
 
-        // Fungsi untuk format waktu
+        // Function to format time
         function formatTime(seconds) {
             const minutes = Math.floor(seconds / 60);
             const remainingSeconds = Math.floor(seconds % 60);
             return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
         }
 
-        // Fungsi untuk update progress bar
+        // Function to update the progress bar.
+        // For live DVR streams videoPlayer.duration is Infinity, so we must
+        // use videoPlayer.seekable to determine the DVR window.
         function updateProgress() {
-            if (videoPlayer.duration) {
-                const progress = (videoPlayer.currentTime / videoPlayer.duration) * 100;
-                progressBar.style.width = progress + '%';
-                timeDisplay.textContent = `${formatTime(videoPlayer.currentTime)} / ${formatTime(videoPlayer.duration)}`;
-            }
+            const sk = videoPlayer.seekable;
+            if (!sk || sk.length === 0) return;
+            const start = sk.start(0);
+            const end = sk.end(sk.length - 1);
+            const span = end - start;
+            if (span <= 0) return;
+            const progress = ((videoPlayer.currentTime - start) / span) * 100;
+            progressBar.style.width = Math.max(0, Math.min(100, progress)) + '%';
+            timeDisplay.textContent =
+                `${formatTime(Math.max(0, videoPlayer.currentTime - start))} / ${formatTime(span)}`;
         }
 
-        // Fungsi untuk update overlay visibility berdasarkan state
+        // Function to update overlay visibility based on state
         function updateOverlayVisibility() {
             if (isLoading) {
-                // Saat loading: sembunyikan overlay text, tampilkan loading
+                // When loading: hide overlay text, show loading indicator
                 videoOverlay.style.opacity = '1';
                 overlayContent.style.display = 'none';
                 hoverPlayButton.classList.add('hidden');
             } else if (isStreamLoaded) {
-                // Saat stream berhasil: sembunyikan semua overlay
+                // When stream is loaded: hide all overlays
                 videoOverlay.style.opacity = '0';
             } else {
-                // Default: tampilkan text instruction
+                // Default: show instruction text
                 videoOverlay.style.opacity = '1';
                 overlayContent.style.display = 'flex';
                 hoverPlayButton.classList.add('hidden');
             }
         }
 
-        // Fungsi untuk membersihkan semua player
+        // Function to clean up all players.
+        // Note: we must NOT assign videoPlayer.src = "" — that triggers a
+        // spurious 'error' event on the <video> element. Use removeAttribute
+        // + load() which resets the element cleanly with no error.
         function cleanupPlayers() {
-            log("Membersihkan player sebelumnya...");
+            log("Cleaning up previous player...");
             if (activeHlsPlayer) {
                 activeHlsPlayer.destroy();
                 activeHlsPlayer = null;
@@ -358,8 +363,10 @@
                 activeWebRtcPeerConnection.close();
                 activeWebRtcPeerConnection = null;
             }
-            videoPlayer.src = "";
+            try { videoPlayer.pause(); } catch (e) { }
+            videoPlayer.removeAttribute('src');
             videoPlayer.srcObject = null;
+            videoPlayer.load();
             isPlaying = false;
             isStreamLoaded = false;
             isLoading = false;
@@ -368,22 +375,22 @@
             updateOverlayVisibility();
         }
 
-        // Fungsi untuk handle hover effects
+        // Function to handle hover effects
         function handleHoverEffects() {
             const isHovering = videoContainer.matches(':hover');
 
             if (!isLoading && !isStreamLoaded && isHovering) {
-                // Jika hover dan belum ada stream, tampilkan tombol play
+                // If hovering and no stream is loaded, show the play button
                 overlayContent.style.display = 'none';
                 hoverPlayButton.classList.remove('hidden');
             } else if (!isLoading && !isStreamLoaded) {
-                // Default: tampilkan teks instruction
+                // Default: show instruction text
                 overlayContent.style.display = 'flex';
                 hoverPlayButton.classList.add('hidden');
             }
         }
 
-        // Fungsi untuk update tombol play/pause
+        // Function to update the play/pause button
         function updatePlayPauseButton() {
             if (isPlaying) {
                 playIcon.classList.add('hidden');
@@ -394,7 +401,7 @@
             }
         }
 
-        // Event listeners untuk kontrol video
+        // Event listeners for video controls
         playPauseBtn.addEventListener('click', () => {
             if (videoPlayer.paused) {
                 videoPlayer.play();
@@ -417,12 +424,14 @@
         });
 
         progressContainer.addEventListener('click', (e) => {
-            if (videoPlayer.duration) {
-                const rect = progressContainer.getBoundingClientRect();
-                const clickX = e.clientX - rect.left;
-                const clickRatio = clickX / rect.width;
-                videoPlayer.currentTime = clickRatio * videoPlayer.duration;
-            }
+            const sk = videoPlayer.seekable;
+            if (!sk || sk.length === 0) return;
+            const start = sk.start(0);
+            const end = sk.end(sk.length - 1);
+            if (end <= start) return;
+            const rect = progressContainer.getBoundingClientRect();
+            const clickRatio = (e.clientX - rect.left) / rect.width;
+            videoPlayer.currentTime = start + clickRatio * (end - start);
         });
 
         fullscreenBtn.addEventListener('click', () => {
@@ -433,25 +442,25 @@
             }
         });
 
-        // Event listener untuk tombol protokol
+        // Event listener for protocol buttons
         protocolButtons.forEach(button => {
             button.addEventListener('click', () => {
-                // 1. Loop semua tombol untuk mereset-nya ke state tidak aktif
+                // 1. Loop through all buttons to reset them to the inactive state
                 protocolButtons.forEach(btn => {
                     btn.classList.remove('active', 'bg-blue-500', 'text-white');
                     btn.classList.add('text-gray-600', 'hover:bg-gray-300');
                 });
 
-                // 2. Aktifkan tombol yang baru saja diklik
+                // 2. Activate the newly clicked button
                 button.classList.add('active', 'bg-blue-500', 'text-white');
                 button.classList.remove('text-gray-600', 'hover:bg-gray-300');
 
                 selectedProtocol = button.dataset.protocol;
-                log(`Protokol diganti menjadi: ${selectedProtocol.toUpperCase()}`);
+                log(`Protocol changed to: ${selectedProtocol.toUpperCase()}`);
             });
         });
 
-        // Event listeners untuk video player
+        // Event listeners for the video player
         videoPlayer.addEventListener('loadstart', () => {
             isLoading = true;
             loadingIndicator.classList.remove('hidden');
@@ -478,7 +487,11 @@
         videoPlayer.addEventListener('timeupdate', updateProgress);
 
         videoPlayer.addEventListener('error', (e) => {
-            const errorMsg = `Error video: ${e.message || 'Unknown error'}`;
+            // Ignore errors fired when the element was intentionally cleared
+            // by cleanupPlayers() — nothing is attached, nothing to report.
+            if (!videoPlayer.currentSrc && !videoPlayer.srcObject) return;
+            const mediaErr = videoPlayer.error;
+            const errorMsg = `Video error: ${mediaErr ? ('code ' + mediaErr.code + ' ' + (mediaErr.message || '')) : 'Unknown error'}`;
             log(errorMsg);
             alert(errorMsg);
             isLoading = false;
@@ -487,11 +500,11 @@
             updateOverlayVisibility();
         });
 
-        // Mouse events untuk hover effect pada video container
+        // Mouse events for hover effect on the video container
         videoContainer.addEventListener('mouseenter', handleHoverEffects);
         videoContainer.addEventListener('mouseleave', handleHoverEffects);
 
-        // Click event untuk hover play button
+        // Click event for the hover play button
         hoverPlayButton.addEventListener('click', loadStream);
 
         // Keyboard shortcuts
@@ -509,20 +522,27 @@
                 case 'KeyF':
                     fullscreenBtn.click();
                     break;
-                case 'ArrowLeft':
-                    videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 10);
+                case 'ArrowLeft': {
+                    const sk = videoPlayer.seekable;
+                    const lo = (sk && sk.length) ? sk.start(0) : 0;
+                    videoPlayer.currentTime = Math.max(lo, videoPlayer.currentTime - 10);
                     break;
-                case 'ArrowRight':
-                    videoPlayer.currentTime = Math.min(videoPlayer.duration, videoPlayer.currentTime + 10);
+                }
+                case 'ArrowRight': {
+                    const sk = videoPlayer.seekable;
+                    const hi = (sk && sk.length) ? sk.end(sk.length - 1)
+                        : (isFinite(videoPlayer.duration) ? videoPlayer.duration : videoPlayer.currentTime + 10);
+                    videoPlayer.currentTime = Math.min(hi, videoPlayer.currentTime + 10);
                     break;
+                }
             }
         });
 
-        // Fungsi utama untuk memuat stream
+        // Main function to load the stream
         function loadStream() {
             const path = pathInput.value.trim();
             if (!path) {
-                alert("Path stream tidak boleh kosong!");
+                alert("Stream path cannot be empty!");
                 return;
             }
 
@@ -530,7 +550,7 @@
             isLoading = true;
             loadingIndicator.classList.remove('hidden');
             updateOverlayVisibility();
-            log(`Mencoba memuat stream "${path}" dengan protokol ${selectedProtocol.toUpperCase()}...`);
+            log(`Attempting to load stream "${path}" with protocol ${selectedProtocol.toUpperCase()}...`);
 
             switch (selectedProtocol) {
                 case 'hls':
@@ -540,21 +560,29 @@
                     loadWebRtc(path);
                     break;
                 default:
-                    log("Protokol tidak valid.");
+                    log("Invalid protocol.");
             }
         }
 
-        // Fungsi untuk memuat HLS
+        // Function to load HLS
         function loadHls(path) {
             const url = `/hls/${path}/index.m3u8`;
             if (Hls.isSupported()) {
-                log(`Memuat HLS dari: ${url}`);
-                activeHlsPlayer = new Hls();
+                log(`Loading HLS from: ${url}`);
+                // Enable real LL-HLS (partial segments) and a large back-buffer
+                // so the user can rewind through the DVR window served by MediaMTX
+                // (configured for ~5 minutes via hlsSegmentCount: 300).
+                activeHlsPlayer = new Hls({
+                    lowLatencyMode: true,
+                    backBufferLength: 300,
+                    liveSyncDurationCount: 3,
+                    maxBufferLength: 30,
+                });
                 activeHlsPlayer.loadSource(url);
                 activeHlsPlayer.attachMedia(videoPlayer);
                 activeHlsPlayer.on(Hls.Events.ERROR, function (event, data) {
                     if (data.fatal) {
-                        const errorMsg = `Error HLS fatal: ${data.details}\n Tolong Masukkan Path yang benar!`;
+                        const errorMsg = `Fatal HLS error: ${data.details}\nPlease enter a correct path!`;
                         log(errorMsg);
                         alert(errorMsg);
                         isLoading = false;
@@ -570,11 +598,11 @@
                     loadingIndicator.classList.add('hidden');
                     updateOverlayVisibility();
                     videoPlayer.play().catch(e => {
-                        log("Autoplay diblokir browser, klik play untuk memulai");
+                        log("Autoplay was blocked by the browser, click play to start");
                     });
                 });
             } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
-                log(`Memuat HLS native dari: ${url}`);
+                log(`Loading native HLS from: ${url}`);
                 videoPlayer.src = url;
                 videoPlayer.addEventListener('loadeddata', () => {
                     isLoading = false;
@@ -583,7 +611,7 @@
                     updateOverlayVisibility();
                 }, { once: true });
                 videoPlayer.addEventListener('error', () => {
-                    const errorMsg = 'Error: Gagal memuat stream HLS';
+                    const errorMsg = 'Error: Failed to load HLS stream';
                     log(errorMsg);
                     alert(errorMsg);
                     isLoading = false;
@@ -593,10 +621,10 @@
                     cleanupPlayers();
                 }, { once: true });
                 videoPlayer.play().catch(e => {
-                    log("Autoplay diblokir browser, klik play untuk memulai");
+                    log("Autoplay was blocked by the browser, click play to start");
                 });
             } else {
-                const errorMsg = 'Browser tidak mendukung HLS';
+                const errorMsg = 'Browser does not support HLS';
                 log(errorMsg);
                 alert(errorMsg);
                 isLoading = false;
@@ -605,23 +633,23 @@
             }
         }
 
-        // Fungsi untuk memuat WebRTC
+        // Function to load WebRTC
         async function loadWebRtc(path) {
             const url = `/webrtc/${path}/whep`;
-            log(`Memulai koneksi WebRTC (WHEP) ke: ${url}`);
+            log(`Starting WebRTC (WHEP) connection to: ${url}`);
 
             try {
                 activeWebRtcPeerConnection = new RTCPeerConnection();
 
                 activeWebRtcPeerConnection.ontrack = (event) => {
-                    log("Track video/audio diterima.");
+                    log("Video/audio track received.");
                     isLoading = false;
                     isStreamLoaded = true;
                     loadingIndicator.classList.add('hidden');
                     updateOverlayVisibility();
                     videoPlayer.srcObject = event.streams[0];
                     videoPlayer.play().catch(e => {
-                        log("Autoplay diblokir browser, klik play untuk memulai");
+                        log("Autoplay was blocked by the browser, click play to start");
                     });
                 };
 
@@ -631,7 +659,7 @@
                 const offer = await activeWebRtcPeerConnection.createOffer();
                 await activeWebRtcPeerConnection.setLocalDescription(offer);
 
-                log("Mengirim SDP offer ke server...");
+                log("Sending SDP offer to server...");
                 const response = await fetch(url, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/sdp' },
@@ -642,16 +670,16 @@
                     throw new Error(`Server response: ${response.status} ${response.statusText}`);
                 }
 
-                log("Menerima SDP answer dari server...");
+                log("Received SDP answer from server...");
                 const answerSdp = await response.text();
                 await activeWebRtcPeerConnection.setRemoteDescription({
                     type: 'answer',
                     sdp: answerSdp,
                 });
-                log("Koneksi WebRTC berhasil dibuat.");
+                log("WebRTC connection established successfully.");
 
             } catch (error) {
-                const errorMsg = `Koneksi WebRTC gagal: ${error.message}`;
+                const errorMsg = `WebRTC connection failed: ${error.message}`;
                 log(errorMsg);
                 alert(errorMsg);
                 isLoading = false;
@@ -662,7 +690,7 @@
             }
         }
 
-        // Enter key untuk load stream
+        // Enter key to load stream
         pathInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 loadStream();

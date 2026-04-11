@@ -24,14 +24,18 @@ server {
     }
 
     # 2. WebRTC (WHEP) - Explicit and low latency
+    # WHEP is plain HTTP POST, not WebSocket — do not send Upgrade headers.
+    # Expose Location/Link so the browser can read the WHEP session resource URL.
     location /webrtc/ {
         proxy_pass http://127.0.0.1:8889/;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "Upgrade";
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
         add_header 'Access-Control-Allow-Origin' '*' always;
+        add_header 'Access-Control-Expose-Headers' 'Location, Link' always;
     }
 
     # 3. HLS - Using a prefix to avoid catching static assets
