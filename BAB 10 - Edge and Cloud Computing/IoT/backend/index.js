@@ -428,7 +428,7 @@ app.get('/api/iot/range', async (req, res) => {
     }
 
     const result = await pool.query(
-      'SELECT * FROM iot WHERE timestamp >= $1 AND timestamp <= $2 ORDER BY timestamp DESC',
+      'SELECT * FROM iot WHERE timestamp >= $1::date AND timestamp < ($2::date + interval \'1 day\') ORDER BY timestamp DESC',
       [start, end]
     );
 
